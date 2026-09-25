@@ -84,9 +84,11 @@ gen_trace <- function(p, bub) {
              Vtot = VTOT, Area = AREA, Pcham = PCH, Tcham = TCH)
 }
 
-run_aqua <- function(d, window) quiet(goAquaFlux(
+BWS <- NULL   # bubble.window.size; NULL = the package default (15 since this branch; 30 before)
+bws_arg <- function() if (is.null(BWS)) list() else list(bubble.window.size = BWS)
+run_aqua <- function(d, window) quiet(do.call(goAquaFlux, c(list(
   d, "CH4dry_ppb", Vtot = VTOT, Area = AREA, Pcham = PCH, Tcham = TCH,
-  diffusion.window = window))
+  diffusion.window = window), bws_arg())))
 
 match_events <- function(true_t, det, dt) {
   # true_t: peak times of the true bubbles; det: goFlux bubbles table
@@ -131,13 +133,15 @@ one_synth <- function(i) {
   out
 }
 
-cat("Part A: ", N_SYNTH, "synthetic traces on", N_CORES, "cores\n")
-t0 <- Sys.time()
-res <- parallel::mclapply(seq_len(N_SYNTH), one_synth, mc.cores = N_CORES)
-syn <- do.call(rbind, res)
-cat("  done in", format(round(difftime(Sys.time(), t0, units = "mins"), 1)), "\n")
-
-# derived metrics
+run_partA <- function(bws) {
+  BWS <<- bws
+  cat("Part A: ", N_SYNTH, "synthetic traces on", N_CORES, "cores, bubble.window.size =", if (is.null(bws)) "default" else bws, "\n")
+  t0 <- Sys.time()
+  syn <- do.call(rbind, parallel::mclapply(seq_len(N_SYNTH), one_synth, mc.cores = N_CORES))
+  cat("  done in", format(round(difftime(Sys.time(), t0, units = "mins"), 1)), "\n")
+  derive(syn)
+}
+derive <- function(syn) {
 syn$err_naive <- syn$naive - syn$true_diff
 syn$err_pre <- syn$pre - syn$true_diff
 syn$err_deb <- syn$deb - syn$true_diff
@@ -153,6 +157,10 @@ syn$pre_na <- is.na(syn$pre)
 syn$deb_na <- is.na(syn$deb)
 syn$timing <- cut(syn$first_tb, c(0, 30, 60, 120, Inf), c("<30 s", "30-60 s", "60-120 s", ">120 s"))
 syn$step_bin <- cut(syn$step_sigma, c(0, 3, 10, 30, 100, Inf), c("<3", "3-10", "10-30", "30-100", ">100"))
+syn
+}
+syn30 <- run_partA(30)   # the old default, for the before/after table
+syn <- run_partA(NULL)   # the current default (15)
 con <- gzfile(file.path(OUT, "results_synthetic.csv.gz"), "w"); write.csv(syn, con, row.names = FALSE); close(con)
 
 summ <- function(x, by) {
@@ -228,6 +236,26 @@ for (case in c("noise", "curv")) {
 }
 dev.off()
 
+# ---- before/after table (synthetic part) -----------------------------------
+headline <- function(x) {
+  x <- x[!x$error, ]; w <- x[x$n_true > 0, ]; b0 <- x[x$n_true == 0, ]; sl <- w[w$slope != 0, ]
+  hr <- function(z) round(sum(z$hits) / sum(z$n_true), 3)
+  medp <- function(v) round(median(v, na.rm = TRUE), 1)
+  out <- c(hit_single = hr(w[w$nb == 1, ]), hit_multi = hr(w[w$nb >= 2, ]),
+           hit_close_pairs_lt20s = hr(w[!is.na(w$min_gap) & w$min_gap < 20, ]),
+           fp_bubble_free_gaussian = round(mean(b0$n_det[b0$noise == "gaussian"] > 0), 3),
+           fp_bubble_free_ar1 = round(mean(b0$n_det[b0$noise == "ar1"] > 0), 3),
+           step_bias_pct = medp(w$mag_bias))
+  for (tm in levels(sl$timing)) out[paste0("pre_bias_", gsub(" ", "", tm))] <- medp(sl$rel_pre[sl$timing == tm])
+  for (tm in levels(sl$timing)) out[paste0("deb_bias_", gsub(" ", "", tm))] <- medp(sl$rel_deb[sl$timing == tm])
+  for (k in c(1, 2, 4)) out[paste0("pre_bias_nb", k)] <- medp(sl$rel_pre[sl$nb == k])
+  for (k in c(1, 2, 4)) out[paste0("deb_bias_nb", k)] <- medp(sl$rel_deb[sl$nb == k])
+  out["pre_NA_frac"] <- round(mean(w$pre_na), 3); out["deb_NA_frac"] <- round(mean(w$deb_na), 3)
+  out
+}
+ba <- data.frame(metric = names(headline(syn30)), old_30 = unname(headline(syn30)), new_15 = unname(headline(syn)))
+write.csv(ba, file.path(OUT, "summary_before_after.csv"), row.names = FALSE)
+
 # ============================================================================
 # Part B: BlueFlux floating-chamber placements
 # ============================================================================
@@ -252,9 +280,9 @@ if (file.exists(bf_file)) {
                     Etime = d0$elapsed_sec, flag = 1, CH4dry_ppb = d0$CH4_ppm * 1000,
                     CH4_prec = 1, H2O_ppm = pmax(d0$H2O_ppm, 0),
                     Vtot = VTOT_B, Area = AREA_B, Pcham = PCH_B, Tcham = TCH_B)
-    r1 <- quiet(goAquaFlux(d, "CH4dry_ppb", Vtot = VTOT_B, Area = AREA_B, Pcham = PCH_B, Tcham = TCH_B))
-    r2 <- quiet(goAquaFlux(d, "CH4dry_ppb", Vtot = VTOT_B, Area = AREA_B, Pcham = PCH_B, Tcham = TCH_B,
-                           diffusion.window = "deebulliated"))
+    r1 <- quiet(do.call(goAquaFlux, c(list(d, "CH4dry_ppb", Vtot = VTOT_B, Area = AREA_B, Pcham = PCH_B, Tcham = TCH_B), bws_arg())))
+    r2 <- quiet(do.call(goAquaFlux, c(list(d, "CH4dry_ppb", Vtot = VTOT_B, Area = AREA_B, Pcham = PCH_B, Tcham = TCH_B,
+                           diffusion.window = "deebulliated"), bws_arg())))
     if (inherits(r1, "try-error") || inherits(r2, "try-error")) return(NULL)
     camp_ev <- cluster_jumps(d0$elapsed_sec[d0$is_jump %in% TRUE])
     det <- r1$bubbles
@@ -276,13 +304,19 @@ if (file.exists(bf_file)) {
       events = if (NROW(det)) cbind(placement_id = s$placement_id, det[, c("start", "end", "t.step", "t.peak", "magnitude", "overshoot", "tau", "SE", "reequil.complete")]) else NULL,
       trace = d, deb = r2$deebulliated, det = det, camp_ev = camp_ev)
   }
-  bres <- lapply(tr, one_bf); bres <- bres[!sapply(bres, is.null)]
-  bf <- do.call(rbind, lapply(bres, `[[`, "row"))
-  bf$flagged <- bf$camp_n_jumps > 0
-  # matched sample: every unflagged placement from the analyzer-days that have a flagged one
-  fd <- unique(paste(bf$analyzer, bf$date)[bf$flagged])
-  bf$matched_sample <- bf$flagged | paste(bf$analyzer, bf$date) %in% fd
-  bf$slope_diff <- bf$slope_deb - bf$slope_pre
+  run_partB <- function(bws) {
+    BWS <<- bws
+    bres <- lapply(tr, one_bf); bres <- bres[!sapply(bres, is.null)]
+    bf <- do.call(rbind, lapply(bres, `[[`, "row"))
+    bf$flagged <- bf$camp_n_jumps > 0
+    # matched sample: every unflagged placement from the analyzer-days that have a flagged one
+    fd <- unique(paste(bf$analyzer, bf$date)[bf$flagged])
+    bf$matched_sample <- bf$flagged | paste(bf$analyzer, bf$date) %in% fd
+    bf$slope_diff <- bf$slope_deb - bf$slope_pre
+    list(bf = bf, bres = bres)
+  }
+  b30 <- run_partB(30); bf30 <- b30$bf
+  bB <- run_partB(NULL); bf <- bB$bf; bres <- bB$bres
   write.csv(bf, file.path(OUT, "results_blueflux.csv"), row.names = FALSE)
   ev <- do.call(rbind, lapply(bres, `[[`, "events"))
   if (!is.null(ev)) write.csv(ev, file.path(OUT, "events_blueflux.csv"), row.names = FALSE)
@@ -319,6 +353,15 @@ if (file.exists(bf_file)) {
   }
   dev.off()
   cat("  placements run:", nrow(bf), "of", length(tr), "\n")
+  ba_blueflux <- function(b) {
+    f <- b[b$flagged, ]; u <- b[!b$flagged, ]
+    c(bf_events_on_flagged = sum(f$gof_n_events), bf_matched_campaign = sum(f$matched),
+      bf_unflagged_with_events = sum(u$gof_n_events > 0), bf_unflagged_events_gt100ppb = sum(u$gof_max_mag > 100, na.rm = TRUE),
+      bf_pre_NA = sum(is.na(b$slope_pre)), bf_deb_NA = sum(is.na(b$slope_deb)))
+  }
+  ba <- rbind(ba, data.frame(metric = names(ba_blueflux(bf30)), old_30 = unname(ba_blueflux(bf30)), new_15 = unname(ba_blueflux(bf))))
+  write.csv(ba, file.path(OUT, "summary_before_after.csv"), row.names = FALSE)
+  cat("\nBefore/after (bubble.window.size 30 vs 15):\n"); print(ba, row.names = FALSE)
 } else cat("Part B skipped: ", bf_file, " not found\n")
 
 # ============================================================================
@@ -326,13 +369,16 @@ if (file.exists(bf_file)) {
 # ============================================================================
 cat("Part C: sensitivity of find.bubbles settings\n")
 hard <- ok$id[ok$n_true >= 2 | ok$n_true == 0 | (ok$n_true == 1 & ok$ramp == 15)]
+close_ids <- ok$id[!is.na(ok$min_gap) & ok$min_gap < 20]
+BWS <- NULL
 settings <- list(
-  default            = list(),
-  window15           = list(bubble.window.size = 15),
+  default_15         = list(),
+  window30_old       = list(bubble.window.size = 30),
   min_gap5           = list(bubble.args = list(min_gap = 5)),
   k3                 = list(bubble.args = list(k = 3)),
-  reg60              = list(bubble.args = list(max_reg_window = 60)),
-  window15_min_gap5  = list(bubble.window.size = 15, bubble.args = list(min_gap = 5)))
+  second_pass        = list(bubble.args = list(second.pass = TRUE)),
+  settle1            = list(bubble.args = list(settle.mult = 1)),
+  second_pass_settle1 = list(bubble.args = list(second.pass = TRUE, settle.mult = 1)))
 one_sens <- function(i, st) {
   p <- design[i, ]; set.seed(1e6 + i); bub <- make_bubbles(p); d <- gen_trace(p, bub)
   r <- quiet(do.call(goAquaFlux, c(list(d, "CH4dry_ppb", Vtot = VTOT, Area = AREA, Pcham = PCH, Tcham = TCH,
@@ -350,6 +396,7 @@ sens <- do.call(rbind, lapply(names(settings), function(nm) {
   data.frame(setting = nm, n = nrow(r),
              hit_rate = round(sum(wb$hits) / sum(wb$n_true), 3),
              hit_rate_multi = round(sum(wb$hits[wb$n_true >= 2]) / sum(wb$n_true[wb$n_true >= 2]), 3),
+             hit_rate_close_lt20 = round(sum(wb$hits[wb$id %in% close_ids]) / sum(wb$n_true[wb$id %in% close_ids]), 3),
              fp_bubble_free = round(mean(bfree$n_det > 0), 3), fp_per_bubble_trace = round(mean(wb$fp), 3),
              mag_bias_pct = round(median(wb$mag_bias, na.rm = TRUE), 1),
              mag_abs_pct_q90 = round(quantile(abs(wb$mag_bias), 0.9, na.rm = TRUE), 1),

@@ -2,7 +2,7 @@
 
 Script: `deebulliated_validation.R` (run from the package root on branch
 `feat/aqua-diffusive-deebulliated`; ~3 min on 6 cores). Tables:
-`summary_synthetic_*.csv`, `summary_sensitivity.csv`, `results_blueflux.csv`,
+`summary_synthetic_*.csv`, `summary_sensitivity.csv`, `summary_before_after.csv`, `results_blueflux.csv`,
 `events_blueflux.csv`; per-trace synthetic results in `results_synthetic.csv.gz`.
 
 ## A. Synthetic traces (2400, seed 20260924)
@@ -63,14 +63,47 @@ the norm). (6) Whatever is missed or mis-fitted goes straight into the de-ebulli
 trace: the option is only as good as `find.bubbles()`, hence `result$deebulliated`
 for plotting.
 
-**Detector settings (`summary_sensitivity.csv`, 1683 hard traces).** `bubble.window.size = 15`
-(the `find.bubbles()` default; `goAquaFlux()` passes 30) raises the hit rate on multi-bubble
-traces from 0.48 to 0.55, halves the 90 % quantile of the de-ebulliated diffusive error
-(419 % to 216 %) and of the step error, at the cost of false positives on bubble-free traces
-rising from 0.4 % to 1.4 %. `min_gap = 5`, `k = 3` and `max_reg_window = 60` change nothing
-useful. I would make `bubble.window.size = 15` the `goAquaFlux()` default (matching
-`find.bubbles()`), and keep `diffusion.window = "pre_bubble"` as the default because
-`deebulliated` inherits every detector miss.
+**Detector settings (`summary_sensitivity.csv`, 1683 hard traces: multi-bubble,
+bubble-free and 15 s-ramp singles).** `bubble.window.size = 15` (the `find.bubbles()`
+default) was 30 in `goAquaFlux()` until this branch; it is now the `goAquaFlux()` default.
+Against the old value it raises the hit rate on multi-bubble traces from 0.48 to 0.55 and
+halves the 90 % quantile of the de-ebulliated diffusive error (419 % to 216 %) and of the
+step error, for 1 % more false events on bubble-free traces (0.4 % to 1.4 %). Two cheap
+fixes for the close-pair failure were added to `find.bubbles()` as opt-in arguments:
+`second.pass = TRUE` (subtract the fitted models, detect again on the residual, split the
+run that hides the new event and refit everything, the split-off run keeping the first
+event's post-bubble level as its baseline) lifts the multi-bubble hit rate to 0.58 and the
+close-pair (< 20 s) rate from 0.46 to 0.50, brings the de-ebulliated bias from 4.6 % to
+3.6 % (q90 216 % to 179 %) and the ebullitive bias from -2.4 % to -1.8 %, with the same
+false-positive rate on bubble-free traces (1.4 %) and 0.3 % more spurious events on bubble
+traces; it does not resolve pairs closer than ~10 s (one rise) and only makes one extra
+pass, so four crowded bubbles still come out as two. `settle.mult = 1` (next event allowed
+from t_p + tau instead of t_p + 3 tau) changes nothing measurable (hit 0.549 vs 0.549).
+`min_gap = 5` changes nothing; `k = 3` gains 0.01 in hit rate for 3.1 % false positives.
+Neither fix is a clear enough win to be the default: `second.pass` stays opt-in
+(`bubble.args = list(second.pass = TRUE)`), `diffusion.window = "pre_bubble"` stays the
+default.
+
+**Before / after the default change (`summary_before_after.csv`; bubble.window.size 30 vs 15).**
+
+| metric | old (30) | new (15) |
+|---|---|---|
+| hit rate: single / multi / pairs < 20 s | 0.71 / 0.48 / 0.39 | 0.73 / 0.55 / 0.46 |
+| false positives, bubble-free: Gaussian / AR(1) | 0.3 % / 0.5 % | 1.2 % / 1.6 % |
+| settled-step bias (median) | 0.2 % | 0.2 % |
+| pre_bubble bias by first bubble < 30 / 30-60 / 60-120 / > 120 s | 40 / 15 / 2.8 / 1.4 % | 20 / 7 / 2.9 / 1.4 % |
+| deebulliated bias, same bins | 7.5 / 7.8 / 2.4 / 1.6 % | 4.6 / 4.7 / 2.0 / 1.6 % |
+| pre_bubble bias by 1 / 2 / 4 bubbles | 1.7 / 1.9 / 11.7 % | 1.6 / 1.8 / 3.5 % |
+| deebulliated bias by 1 / 2 / 4 bubbles | 1.6 / 3.8 / 25.7 % | 1.6 / 3.0 / 11.2 % |
+| pre_bubble NA / deebulliated NA (bubble traces) | 42 % / 2.9 % | 45 % / 4.4 % |
+| BlueFlux: goFlux events on flagged / matching campaign | 5 / 5 | 6 / 5 |
+| BlueFlux: unflagged placements with events / events > 100 ppb | 13 / 3 | 20 / 3 |
+| BlueFlux: pre_bubble NA / deebulliated NA (of 180) | 9 / 0 | 12 / 0 |
+
+The shorter window finds more (and earlier) bubbles, which is why `pre_bubble` returns NA
+slightly more often (the window is cut earlier) while its bias on the remaining traces
+halves; the seven extra unflagged BlueFlux placements with events all carry events below
+the campaign's 100 ppb per-sample threshold (the three above it are unchanged).
 
 ## B. BlueFlux floating-chamber placements
 
@@ -109,8 +142,9 @@ flux where the default gives NA and agrees with the campaign's hand-checked
 step-corrected slopes; the detector is more specific than a fixed per-sample threshold
 (staircases, gaps, steep ramps) and more sensitive to slow multi-sample rises, and its
 weaknesses are events in the last seconds, closely spaced or crowded events, and
-disturbances that look like a step. Recommend `bubble.window.size = 15` as the
-`goAquaFlux()` default and plotting `result$deebulliated` before using the option.
+disturbances that look like a step. `bubble.window.size = 15` is now the `goAquaFlux()` default; plot
+`result$deebulliated` before using the option, and try `bubble.args = list(second.pass = TRUE)`
+on traces with closely spaced bubbles.
 
 Figures: `fig1_step_sigma.png` (detection and step bias vs step/sigma),
 `fig2_timing.png` (diffusive bias vs first-bubble time; NA fraction),

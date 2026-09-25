@@ -70,7 +70,12 @@
 #'   returned.
 #'
 #' @param bubble.window.size Integer specifying the rolling window size
-#'   (number of observations) used for bubble detection.
+#'   (number of observations) used for bubble detection. Default 15, the
+#'   \code{\link{find.bubbles}} default (it was 30 until goFlux 0.4.0): on
+#'   synthetic traces with several or closely spaced bubbles the shorter window
+#'   raises the hit rate from 0.48 to 0.55 and halves the error of the
+#'   de-ebulliated diffusive flux, for 1 percent more false events on
+#'   bubble-free traces (see \code{inst/validation/deebulliated_validation.md}).
 #'
 #' @param bubble_gas Character string specifying the gas used to detect
 #'   bubbling events. Default is \code{"CH4dry_ppb"}.
@@ -190,7 +195,7 @@ goAquaFlux <- function(dataframe,
 
                        # Bubble detection
                        use_bubble_detection = TRUE,
-                       bubble.window.size = 30,
+                       bubble.window.size = 15,
                        bubble_gas = "CH4dry_ppb",
                        bubble.method = "diff",   ## "variance" or "diff"; passed to find.bubbles().
                        bubble.args = list(),    ## named list of extra find.bubbles() args (e.g. list(k = 5, min_magnitude = 10)).

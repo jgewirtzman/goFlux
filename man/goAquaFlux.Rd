@@ -18,7 +18,7 @@ goAquaFlux(
   Pcham = NULL,
   Tcham = NULL,
   use_bubble_detection = TRUE,
-  bubble.window.size = 30,
+  bubble.window.size = 15,
   bubble_gas = "CH4dry_ppb",
   bubble.method = "diff",
   bubble.args = list(),
@@ -82,7 +82,12 @@ the flux is partitioned into diffusive and ebullitive components. If
 returned.}
 
 \item{bubble.window.size}{Integer specifying the rolling window size
-(number of observations) used for bubble detection.}
+(number of observations) used for bubble detection. Default 15, the
+\code{\link{find.bubbles}} default (it was 30 until goFlux 0.4.0): on
+synthetic traces with several or closely spaced bubbles the shorter window
+raises the hit rate from 0.48 to 0.55 and halves the error of the
+de-ebulliated diffusive flux, for 1 percent more false events on
+bubble-free traces (see \code{inst/validation/deebulliated_validation.md}).}
 
 \item{bubble_gas}{Character string specifying the gas used to detect
 bubbling events. Default is \code{"CH4dry_ppb"}.}

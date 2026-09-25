@@ -1,7 +1,7 @@
 # feat: de-ebulliated diffusive window in goAquaFlux()
 
 **Branch:** `feat/aqua-diffusive-deebulliated`
-**Files:** `R/goAquaFlux.diffusive.R` (new arg, `.deebulliate()` helper), `R/goAquaFlux.R` (pass-through, `diffusive_window` column), `man/goAquaFlux.Rd`, `man/goAquaFlux.diffusive.Rd`, `tests/testthat/test-goAquaFlux.deebulliated.R` (new; adds `testthat` to Suggests)
+**Files:** `R/goAquaFlux.diffusive.R` (new arg, `.deebulliate()` helper), `R/goAquaFlux.R` (pass-through, `diffusive_window` column, `bubble.window.size` default 30 -> 15), `R/find.bubbles.R` (fit loop wrapped in a closure; opt-in `second.pass` and `settle.mult`), `inst/validation/` (synthetic + BlueFlux validation), `man/goAquaFlux.Rd`, `man/goAquaFlux.diffusive.Rd`, `tests/testthat/test-goAquaFlux.deebulliated.R` (new; adds `testthat` to Suggests)
 
 `goAquaFlux.diffusive()` fits the diffusive flux of the bubble gas on the
 observations before the first bubble, so an incubation that bubbles in the
@@ -37,4 +37,10 @@ obs) and the de-ebulliated fit gives 22.6 (HM, n = 251 after flagging out the
 27 samples from the detected start at 23 s to the peak at 49.8 s; 21.1 when
 those samples were left in; the LM slope matches the raw post-bubble slope),
 with the ebullitive flux unchanged at 21.08. A fuller validation (synthetic
-grid and BlueFlux floating-chamber closures) is in `inst/validation/`.
+grid and BlueFlux floating-chamber closures) is in `inst/validation/`; on its basis
+`goAquaFlux()`'s `bubble.window.size` default is changed from 30 to 15 (the
+`find.bubbles()` default: multi-bubble hit rate 0.48 -> 0.55, de-ebulliated error q90
+halved, +1 % false events on bubble-free traces), and `find.bubbles()` gains the opt-in
+`second.pass = TRUE` (re-detect on the residual and refit; +3 points on multi-bubble and
+close-pair hit rates at the same false-positive rate) and `settle.mult` (no measurable
+effect; kept as a knob). `diffusion.window = "pre_bubble"` remains the default.

@@ -56,3 +56,15 @@ test_that("the de-ebulliated trace is returned with the rise samples flagged out
   keep <- deb$deebulliated[deb$deebulliated$flag == 1, ]
   expect_equal(unname(coef(lm(CH4dry_ppb ~ Etime, keep))[2]), 2, tolerance = 0.02)
 })
+
+test_that("find.bubbles(second.pass = TRUE) resolves a 12 s pair that the single pass merges", {
+  set.seed(3); t <- 0:359; conc <- 2000 + 2 * t + rnorm(360, 0, 1.5)
+  for (tb in c(100, 112)) { a <- t >= tb; conc[a] <- conc[a] + 300 + 100 * exp(-(t[a] - tb) / 12) }
+  df <- data.frame(Etime = t, CH4dry_ppb = conc)
+  b1 <- goFlux:::find.bubbles(df, "CH4dry_ppb", window.size = 15, method = "diff")
+  b2 <- goFlux:::find.bubbles(df, "CH4dry_ppb", window.size = 15, method = "diff", second.pass = TRUE)
+  expect_equal(nrow(b1), 1); expect_equal(nrow(b2), 2)
+  expect_equal(b2$t.step, c(100, 112)); expect_equal(b2$magnitude[1], 300, tolerance = 0.05)
+  # default goAquaFlux window is now 15, and second.pass is reachable through bubble.args
+  expect_equal(formals(goAquaFlux)$bubble.window.size, 15)
+})
