@@ -8,6 +8,7 @@ import.LI7810(
   inputfile,
   date.format = "ymd",
   timezone = "UTC",
+  dates = NULL,
   save = FALSE,
   keep_all = FALSE,
   prec = c(3.5, 0.6, 45)
@@ -26,6 +27,12 @@ the example data file provided.}
 POSIXct format. Default is "UTC". Note about time zone: it is
 recommended to use the time zone "UTC" to avoid any issue
 related to summer time and winter time changes.}
+
+\item{dates}{optional character vector of dates (as written in the
+\code{DATE} column of the file, e.g. "2022-12-05") to keep. When
+given, only \code{DATA} rows with a matching date are parsed, so a
+campaign-long file of hundreds of MB imports in seconds. Default
+\code{NULL} keeps every row.}
 
 \item{save}{logical; if \code{save = TRUE}, saves the file as an .RData file
 in a RData folder in the current working directory. If
