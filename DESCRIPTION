@@ -74,6 +74,7 @@ Collate:
     'manID.G2201i-data.R'
     'manID.UGGA-data.R'
     'obs.win.R'
+    'spec.at.interval.R'
 Suggests:
     testthat (>= 3.0.0)
 Imports: AICcmodavg, data.table, dplyr, ggnewscale, ggplot2, ggstar, graphics, grDevices, grid, gridExtra, jsonlite, lifecycle, lubridate, minpack.lm, msm, pbapply, plyr, purrr, rjson, rlang, rlist, SimDesign, stats, stringr, tibble, tidyr, toOrdinal, utils, zoo

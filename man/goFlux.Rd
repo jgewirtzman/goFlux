@@ -90,7 +90,9 @@ Default is \code{k.min = 0}}
 minimal detectable flux (see \code{\link[goFlux]{MDF}}): with
 \code{conf = 0.95} the \code{MDF} column is
 \eqn{1.96 \cdot prec / t \cdot flux.term}. Default \code{NULL}
-keeps the current \eqn{prec / t \cdot flux.term}.}
+keeps the current \eqn{prec / t \cdot flux.term}. Here \code{t}
+is \code{max(Etime) + 1}, in seconds from \code{POSIX.time}
+regardless of the logging interval (it is not \code{nb.obs}).}
 }
 \value{
 Returns a data frame with 32 columns: a \code{UniqueID} per

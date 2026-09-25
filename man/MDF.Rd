@@ -18,31 +18,72 @@ MDF(p, t, flux.term, conf = NULL)
 When given, the precision is scaled by the standard-normal
 quantile \eqn{z = qnorm(1 - (1 - conf)/2)} (1.96 for 0.95, the
 2-sigma criterion; 1.645 for 0.90), i.e.
-\eqn{MDF = z \cdot p / t \cdot flux.term} (Wassmann et al. 2018).
-Default \code{NULL} keeps \eqn{z = 1} (unchanged behaviour).}
+\eqn{MDF = z \cdot p / t \cdot flux.term}. This generalises the
+fixed multiplier of Wassmann et al. (2018), who used k = 3
+("99 \%") on the standard deviation of replicate ambient-air
+analyses; for the alpha = 0.05 detection limit see Parkin,
+Venterea and Hargreaves (2012). Default \code{NULL} keeps
+\eqn{z = 1} (unchanged behaviour).}
 }
 \value{
 a numerical value
 }
 \description{
 The minimal detectable flux based on instrument precision and the
-measurement time.
+measurement time: \eqn{MDF = p / t \cdot flux.term} (Christiansen et al.
+2015, section 2.5, who define MDF as analytic precision divided by the
+enclosure time). Optionally scaled to a stated confidence level with
+\code{conf}.
+}
+\details{
+\strong{Measurement time \code{t}.} \code{\link[goFlux]{goFlux}} passes
+\code{t = max(Etime) + 1}, where \code{Etime} is the elapsed time in
+seconds computed from \code{POSIX.time} (\code{as.numeric(POSIX.time -
+start.time, units = "secs")}). It is therefore in seconds whatever the
+logging interval: a closure of 180 s logged every 5 s (36 observations)
+gives the same \eqn{MDF \cdot t / p} as the same closure logged at 1 Hz
+(180 observations). \code{t} is never the number of observations
+(\code{nb.obs}); the two coincide only at 1 Hz. The \code{+ 1} adds one
+1-s sample to the span of the flagged rows; at coarser intervals the exact
+closure length would be the span plus one logging interval, a difference
+of a few seconds on a closure of minutes.
+
+\strong{Precision \code{p}.} With a datasheet or empirical precision
+expressed as one standard deviation, the default MDF is a one-sigma limit.
+Note that the "SD x 3 x t99" of Christiansen et al. (2015) is a
+gas-chromatograph method quantification limit from replicate standards
+(Corley 2003), not a per-closure MDF; it should not be read as a
+\eqn{3 \cdot t} variant of this function. An empirical precision can be
+estimated from the data with \code{\link[goFlux]{empirical.prec}}; a
+datasheet precision quoted at 1 s can be rescaled to the logging interval
+with \code{\link[goFlux]{spec.at.interval}}.
 }
 \references{
-Christiansen et al. (2015). Comparison of
+Christiansen, J. R., Outhwaite, J., & Smukler, S. M. (2015).
+Comparison of
 \ifelse{html}{\out{CO<sub>2</sub>}}{\eqn{CO[2]}{ASCII}},
 \ifelse{html}{\out{CH<sub>4</sub>}}{\eqn{CH[4]}{ASCII}} and
 \ifelse{html}{\out{N<sub>2</sub>O}}{\eqn{N[2]O}{ASCII}} soil-atmosphere
 exchange measured in static chambers with cavity ring-down spectroscopy and
-gas chromatography. \emph{Agricultural and Forest Meteorology}, 211, 48-57.
+gas chromatography. \emph{Agricultural and Forest Meteorology}, 211-212,
+48-57.
 
-Wassmann, R., et al. (2018). Increasing sensitivity of methane emission
-measurements in rice through deployment of 'closed chambers' at nighttime.
-\emph{PLoS ONE}, 13(2), e0191352.
+Corley, J. (2003). Best practices in establishing detection and
+quantification limits for pesticide residues in foods. In: \emph{Handbook of
+Residue Analytical Methods for Agrochemicals}. Wiley.
+
+Parkin, T. B., Venterea, R. T., & Hargreaves, S. K. (2012). Calculating the
+detection limits of chamber-based soil greenhouse gas flux measurements.
+\emph{Journal of Environmental Quality}, 41, 705-715.
+
+Wassmann, R., Alberto, M. C., Tirol-Padre, A., Hoang, N. T., Romasanta, R.,
+Centeno, C. A., & Sander, B. O. (2018). Increasing sensitivity of methane
+emission measurements in rice through deployment of 'closed chambers' at
+nighttime. \emph{PLoS ONE}, 13(2), e0191352.
 }
 \seealso{
-\code{\link[goFlux]{flux.term}}
-
-\code{\link[goFlux]{empirical.prec}} to estimate \code{p} from the data.
+\code{\link[goFlux]{flux.term}},
+         \code{\link[goFlux]{empirical.prec}} to estimate \code{p} from the data,
+         \code{\link[goFlux]{spec.at.interval}}
 }
 \keyword{internal}
