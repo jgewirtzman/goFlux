@@ -4,7 +4,7 @@
 \alias{MDF}
 \title{Minimal Detectable Flux (MDF)}
 \usage{
-MDF(p, t, flux.term)
+MDF(p, t, flux.term, conf = NULL)
 }
 \arguments{
 \item{p}{numerical; precision of the instrument (same units as measured gas; ex. ppm)}
@@ -13,6 +13,13 @@ MDF(p, t, flux.term)
 
 \item{flux.term}{numerical; flux term calculated with the function
 \code{\link[goFlux]{flux.term}}}
+
+\item{conf}{numerical; optional two-sided confidence level (e.g. 0.95).
+When given, the precision is scaled by the standard-normal
+quantile \eqn{z = qnorm(1 - (1 - conf)/2)} (1.96 for 0.95, the
+2-sigma criterion; 1.645 for 0.90), i.e.
+\eqn{MDF = z \cdot p / t \cdot flux.term} (Wassmann et al. 2018).
+Default \code{NULL} keeps \eqn{z = 1} (unchanged behaviour).}
 }
 \value{
 a numerical value
@@ -28,8 +35,14 @@ Christiansen et al. (2015). Comparison of
 \ifelse{html}{\out{N<sub>2</sub>O}}{\eqn{N[2]O}{ASCII}} soil-atmosphere
 exchange measured in static chambers with cavity ring-down spectroscopy and
 gas chromatography. \emph{Agricultural and Forest Meteorology}, 211, 48-57.
+
+Wassmann, R., et al. (2018). Increasing sensitivity of methane emission
+measurements in rice through deployment of 'closed chambers' at nighttime.
+\emph{PLoS ONE}, 13(2), e0191352.
 }
 \seealso{
 \code{\link[goFlux]{flux.term}}
+
+\code{\link[goFlux]{empirical.prec}} to estimate \code{p} from the data.
 }
 \keyword{internal}

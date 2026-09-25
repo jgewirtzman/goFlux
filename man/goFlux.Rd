@@ -17,7 +17,8 @@ goFlux(
   Tcham = NULL,
   k.mult = 1,
   warn.length = 60,
-  k.min = 0
+  k.min = 0,
+  conf = NULL
 )
 }
 \arguments{
@@ -84,6 +85,12 @@ flagged for being too short (\code{nb.obs < warn.length}).}
 
 \item{k.min}{numerical value; a lower boundary value for kappa in the HM model.
 Default is \code{k.min = 0}}
+
+\item{conf}{numerical value; optional two-sided confidence level for the
+minimal detectable flux (see \code{\link[goFlux]{MDF}}): with
+\code{conf = 0.95} the \code{MDF} column is
+\eqn{1.96 \cdot prec / t \cdot flux.term}. Default \code{NULL}
+keeps the current \eqn{prec / t \cdot flux.term}.}
 }
 \value{
 Returns a data frame with 32 columns: a \code{UniqueID} per

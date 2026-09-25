@@ -12,7 +12,8 @@ best.flux(
   g.limit = 2,
   p.val = 0.05,
   k.ratio = 1,
-  warn.length = 60
+  warn.length = 60,
+  conf = NULL
 )
 }
 \arguments{
@@ -51,6 +52,13 @@ the kappa-max. Default is \code{k.ratio = 1}.}
 
 \item{warn.length}{numerical value; limit under which a measurement is flagged for
 being too short (\code{nb.obs < warn.length}).}
+
+\item{conf}{numerical value; optional two-sided confidence level applied to
+the \code{MDF} column before the MDF criterion:
+\eqn{MDF \cdot qnorm(1 - (1 - conf)/2)} (1.96 for 0.95). Use it when
+\code{\link[goFlux]{goFlux}} was run without \code{conf}. The
+scaled value is returned in \code{MDF} and the level in
+\code{MDF.conf}. Default \code{NULL}: unchanged.}
 }
 \value{
 A data.frame identical to the input \code{flux.result} (output from
