@@ -48,6 +48,10 @@ website:
         text: "goFlux"
       - file: bestflux.qmd
         text: "best.flux"
+      - file: precision.qmd
+        text: "Precision and MDF"
+      - file: qualityflags.qmd
+        text: "Quality flags"
       - file: flux2pdf.qmd
         text: "Plots"
       - file: goAquaFlux.qmd

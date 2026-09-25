@@ -1,0 +1,65 @@
+---
+title: "Empirical precision and detection limits"
+subtitle: "Estimate the instrument precision from your own record and state the confidence level of the minimal detectable flux"
+engine: knitr
+editor: visual
+---
+
+The [minimal detectable flux](bestflux.qmd#minimal-detectable-flux) (MDF) of `goFlux` is built on the instrument precision `prec` and the measurement time:
+
+$$MDF = \frac{prec}{t} \times \frac{V \cdot P}{R \cdot T \cdot A}$$
+
+By default `prec` is the manufacturer's specification, given at import (e.g. `prec = c(3.5, 0.6, 45)` for the LI-7810). Field-worn analyzers are noisier than their datasheet, so an MDF built on the datasheet value is optimistic. Two things help: estimate the precision from the data, and say at which confidence level a flux counts as detected.
+
+## Estimate the precision from the record
+
+`empirical.prec()` estimates the precision (1 σ) from the first differences of the concentration series. Differencing removes any smooth trend, so the flux signal cancels and only the instrument noise remains ($Var(x_{i+1} - x_i) = 2\sigma^2$).
+
+```{r}
+#| eval: false
+library(goFlux)
+data(manID.UGGA)
+
+# one robust value for the whole record: MAD(dx) x 1.4826 / sqrt(2)
+empirical.prec(manID.UGGA, "CH4dry_ppb")
+
+# one value per field day, campaign, ... (any column of the data frame)
+empirical.prec(manID.UGGA, "CH4dry_ppb", by = "DATE")
+
+# one value per measurement, Allan deviation SD(dx)/sqrt(2) on the flagged window
+empirical.prec(manID.UGGA, "CH4dry_ppb", method = "allan")
+```
+
+`method = "mad"` (the default) is robust to the isolated large differences produced by chamber changes, breaths and moves, so the entire field record can be used without selecting quiet periods. `method = "allan"` is the classical per-measurement estimate; it is a good diagnostic of a disturbed measurement (see [Quality flags](qualityflags.qmd)) but a poor basis for the MDF, because it varies from one measurement to the next.
+
+## State the confidence level
+
+With `prec` = 1 σ, `MDF = prec / t × flux.term` is a one-sigma limit. `MDF()`, `goFlux()` and `best.flux()` accept `conf`, a two-sided confidence level: the precision is multiplied by $z = qnorm(1 - (1 - conf)/2)$, i.e. 1.96 for `conf = 0.95` (the two-sigma criterion of Wassmann et al., 2018) and 1.645 for `conf = 0.90`. Without `conf` nothing changes ($z = 1$).
+
+```{r}
+#| eval: false
+sigma <- empirical.prec(manID.UGGA, "CH4dry_ppb")$prec
+
+# write the empirical precision into the prec column goFlux() reads ...
+manID.UGGA$CH4_prec <- sigma
+# ... and ask for a 95 % MDF
+CH4_flux <- goFlux(manID.UGGA, "CH4dry_ppb", conf = 0.95)
+CH4_best <- best.flux(CH4_flux)          # the MDF criterion now uses the 95 % MDF
+
+# or scale an existing flux table before the MDF criterion is applied
+CH4_best <- best.flux(CH4_flux, conf = 0.95)   # adds the column MDF.conf
+```
+
+::: callout-tip
+#### With a stock goFlux
+
+Nothing above is needed to get the same MDF with an older goFlux: supply $1.96 \cdot \sigma$ as `prec`. Either at import (`import.UGGA(..., prec = 1.96 * sigma)`) or directly in `goFlux(..., prec = 1.96 * sigma)`; the `MDF` column is then the 95 % limit.
+:::
+
+## Reporting
+
+State the three ingredients: the precision estimator (datasheet, record-wide MAD or per-measurement Allan deviation), the confidence level, and the measurement time, e.g. "MDF at 95 % (two-sided), record-wide MAD precision of 2.2 ppb, 300 s closure". The flux table carries `prec`, `MDF` and, when `best.flux(conf = )` was used, `MDF.conf`.
+
+::: {.callout-note}
+The p-value of the linear slope (`LM.p.val`) is not a detection criterion: on 1 Hz records the residuals are autocorrelated and the ordinary least-squares test is anticonservative. Use it as a coarse validity filter and the MDF with an empirical precision and a stated `conf` for detection.
+:::

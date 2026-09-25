@@ -281,6 +281,17 @@ When running the function `click.peak2`, for each measurement, a window will ope
 cat(autodoc("click.peak2", level = 4, examples = FALSE))
 ```
 
+#### Several gases on one time axis
+
+When the window is picked for one gas it helps to see the others: a rising CO~2~ confirms that the chamber was sealed while the CH~4~ window is chosen, and a step in water vapour marks a chamber change. `gases` draws any additional gas columns as read-only panels above the `gastype` panel, all sharing the time axis and the blue lines of the nominal window. The clicks still go on the `gastype` panel only and the output is identical to the single-panel call.
+
+```{r}
+#| eval: false
+manID.UGGA <- click.peak2(ow.UGGA, gastype = "CH4dry_ppb",
+                          gases = c("CO2dry_ppm", "H2O_ppm"))
+```
+
+
 #### Value
 
 The function returns a data.frame, identical to an unlisted version of the input `ow.list`, with the additional `flag`, `Etime`, `start.time_corr`, `end.time_corr` and `obs.length_corr`.
