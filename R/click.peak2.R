@@ -33,6 +33,15 @@
 #' @param height numerical value; height of the pop-up window.
 #' @param abline logical; if TRUE (default), blue vertical lines indicate
 #'               \code{start.time} and \code{end.time} on both plots.
+#' @param gases character vector; optional additional gas columns (e.g.
+#'              \code{c("CO2dry_ppm", "H2O_ppm")}) drawn as read-only panels
+#'              above the \code{gastype} panel, sharing its time axis, so that
+#'              the observation window can be chosen with the other gases in
+#'              view (a CO2 rise confirms the seal when picking a CH4 window;
+#'              a water-vapour step marks a chamber change). Clicking still
+#'              happens on the \code{gastype} panel only and the output is
+#'              identical to the unstacked call. Default \code{NULL}: single
+#'              panel, unchanged behaviour.
 #' @param abline_corr logical; if TRUE (default), red vertical lines indicate
 #'               \code{start.time_corr} and \code{end.time_corr} on validation plot.
 #'
@@ -145,7 +154,7 @@
 click.peak2 <- function(ow.list, gastype = "CO2dry_ppm", sleep = 3,
                         plot.lim = c(380,1000), seq = NULL, warn.length = 60,
                         save.plots = NULL, width = 14, height = 8,
-                        abline = TRUE, abline_corr = TRUE){
+                        abline = TRUE, abline_corr = TRUE, gases = NULL){
 
   # Check arguments ####
   if(!is.numeric(plot.lim) | length(plot.lim) != 2){
@@ -160,6 +169,9 @@ click.peak2 <- function(ow.list, gastype = "CO2dry_ppm", sleep = 3,
   } else {if(height <= 0) stop("'height' must be greater than 0")}
   if(!is.logical(abline)) stop("'abline' must be TRUE or FALSE")
   if(!is.logical(abline_corr)) stop("'abline' must be TRUE or FALSE")
+  if(!is.null(gases)){
+    if(!is.character(gases)) stop("'gases' must be a character vector")
+    gases <- setdiff(gases, gastype)}
 
   ## seq ####
   if(!is.null(seq)) if(!is.numeric(seq)) stop("'seq' must be of class numeric")
@@ -203,6 +215,13 @@ click.peak2 <- function(ow.list, gastype = "CO2dry_ppm", sleep = 3,
       stop(paste("The column that matches 'gastype' in each data frame of",
                  "'ow.list' must be of class numeric"))}}
 
+  ### gases and match in ow.list ####
+  if(!is.null(gases)) for (ow in seq){
+    for (g in gases){
+      if(!any(grepl(paste("\\<", g, "\\>", sep = ""), names(ow.list[[ow]])))){
+        stop(paste("data frames in 'ow.list' must contain a column that matches",
+                   "each element of 'gases':", g, "not found"))}}}
+
   ## sleep ####
   if(!is.null(sleep)){
     if(!is.numeric(sleep)) stop("'sleep' must be of class numeric")
@@ -217,6 +236,21 @@ click.peak2 <- function(ow.list, gastype = "CO2dry_ppm", sleep = 3,
     p <- proc.time()
     Sys.sleep(x)
     proc.time() - p # The CPU usage should be negligible
+  }
+
+  # Read-only panels of the other gases, drawn above the gastype panel so
+  # that identify() acts on the last (gastype) panel. Shared time axis.
+  stack.panels <- function(ow.data, time.meas, start.time, end.time){
+    if(is.null(gases)) return(invisible(NULL))
+    n <- length(gases) + 1
+    par(mfrow = c(n, 1), mar = c(0.5, 4.1, 1.5, 2.1), oma = c(4, 0, 2, 0))
+    for (g in gases){
+      g.meas <- Reduce("c", ow.data[, g])
+      plot(g.meas ~ time.meas, xlab = "", ylab = g, xaxt = 'n')
+      if(abline == TRUE) abline(v=c(start.time, end.time), col = "blue")
+    }
+    par(mar = c(4.1, 4.1, 1.5, 2.1))
+    invisible(NULL)
   }
 
   # Restore default options on exit
@@ -263,11 +297,16 @@ click.peak2 <- function(ow.list, gastype = "CO2dry_ppm", sleep = 3,
         # Open a new window
         dev.new(noRStudioGD = TRUE, width = width, height = height)
 
+        # Optional read-only panels of the other gases (same time axis)
+        stack.panels(ow.list[[ow]], time.meas, start.time, end.time)
+
         # Plot individual measurements
         plot(flux.meas ~ time.meas,
-             main = paste(unique(ow.list[[ow]]$UniqueID)),
+             main = if(is.null(gases)) paste(unique(ow.list[[ow]]$UniqueID)) else "",
              xlab = "Time", ylab = gastype, xaxt = 'n',
              ylim = c(ylim.min, ylim.max))
+        if(!is.null(gases)) mtext(paste(unique(ow.list[[ow]]$UniqueID)),
+                                  outer = TRUE, cex = 1.2, line = 0.5)
         if(abline == TRUE) abline(v=c(start.time, end.time), col = "blue")
 
         # Force axis.POSIXct to use the right time zone
