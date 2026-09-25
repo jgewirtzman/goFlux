@@ -195,7 +195,7 @@ crop.meas <- function(dataframe, auxfile = NULL,
   # Add a column for max.obs.length
   if(!is.null(max.obs.length)){
     if(max.obs.length == "aux"){
-      unique_max.obs.length <- select(auxfile, UniqueID, max.obs.length = max.obs.length)
+      unique_obs.length <- select(auxfile, UniqueID, max.obs.length)
       meta <- left_join(meta, unique_obs.length, by = "UniqueID")
     } else {meta <- mutate(meta, max.obs.length = max.obs.length)}
   }
