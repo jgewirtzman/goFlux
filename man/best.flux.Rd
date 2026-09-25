@@ -140,6 +140,18 @@ If \code{LM.p.val < p.val}, a warning is given in the columns
 \code{quality.check} and \code{LM.diagnose} to warn of an estimated flux
 below the detection limit.
 
+\strong{Note on p-values.} The \emph{p-value} criterion tests the slope of
+the linear model with ordinary least-squares standard errors, which assume
+independent residuals. On high-frequency records (1 Hz and faster) the
+residuals of a chamber trace are strongly autocorrelated, so the test is
+anticonservative: it declares slopes significant far more often than the
+nominal level, and the smaller the p-value the less it means. Treat it as a
+coarse validity filter (a flat trace with \code{LM.p.val} well above
+\code{p.val} is not a flux), not as a detection criterion. For detection use
+the minimal detectable flux with an empirical precision
+(\code{\link[goFlux]{empirical.prec}}) and a stated confidence level
+(\code{conf}).
+
 \code{warn.length} is the limit below which the chamber closure time is
 flagged for being too short (\code{nb.obs < warn.length}). Portable
 greenhouse gas analyzers typically measure at a frequency of 1 Hz. Therefore,

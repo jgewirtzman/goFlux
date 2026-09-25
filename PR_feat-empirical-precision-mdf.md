@@ -1,7 +1,7 @@
 # feat: empirical.prec() and a confidence level for MDF
 
 **Branch:** `feat/empirical-precision-mdf`
-**Files:** `R/empirical.prec.R` (new), `R/MDF.R`, `R/goFlux.R`, `R/best.flux.R`, `man/`, `NAMESPACE`, `tests/testthat/test-empirical.prec.R` (new; adds `testthat` to Suggests)
+**Files:** `R/empirical.prec.R` (new), `R/MDF.R`, `R/goFlux.R`, `R/best.flux.R`, `man/`, `NAMESPACE`, `tests/testthat/test-empirical.prec.R` (new)
 
 Datasheet precision underestimates the noise of field-worn analyzers (2.5x on
 a UGGA in our data), so the MDF built on it is too optimistic. This adds
@@ -21,3 +21,5 @@ a UGGA in our data), so the MDF built on it is too optimistic. This adds
 
 Tests: `tests/testthat/test-empirical.prec.R` (recovery of known noise levels,
 default-unchanged and scaling checks).
+
+Based on `chore/testthat-skeleton` (tests/testthat.R, `testthat` in Suggests).
