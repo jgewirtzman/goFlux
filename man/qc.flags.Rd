@@ -52,7 +52,10 @@ Defaults 3 and 10. Needs \code{dataframe}.}
 precision (MAD of first differences / sqrt(2) on its flagged
 rows) exceeds \code{noisy.mult} times the record (or group)
 precision from \code{\link[goFlux]{empirical.prec}}: a
-disturbed closure. Default 1.5. Needs \code{dataframe}.}
+disturbed closure. When the record was logged at more than
+one interval, each closure is compared with the record
+precision at its own logging interval (the \code{dt_s} of
+\code{empirical.prec}). Default 1.5. Needs \code{dataframe}.}
 }
 \value{
 \code{flux.result} with the columns \code{qc.c0}, \code{qc.convex},

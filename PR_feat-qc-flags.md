@@ -21,3 +21,19 @@ outputs, not a screen, and the docs say not to use it on open water, lit
 foliage or dead wood.
 
 Based on `chore/testthat-skeleton` (tests/testthat.R, `testthat` in Suggests).
+
+## Follow-up (candidates for the upstream PR)
+
+- `R/empirical.prec.R` synced from `feat/empirical-precision-mdf`:
+  `method = "mad"` now returns one row per logging interval (`dt_s`) with a
+  warning when a record changed interval.
+- `qc.flags(noisy.mult =)` accordingly compares each closure's MAD precision
+  with the record (or group) precision *at the closure's own logging interval*
+  (median spacing of its flagged rows, rounded to 0.5 s), falling back to the
+  interval with the most differences; it no longer assumes `empirical.prec()`
+  returns a single row. Test added with a 1 Hz + 5 s mixed record.
+- Fix: `qc.flags(by =)` always failed with "'dataframe' must contain a column
+  that matches 'by'" because the internal grouping column was named `.by`,
+  which the `\\<...\\>` word-boundary check in `empirical.prec()` cannot
+  match (`.` is not a word character). Renamed to `qc_by`; covered by the new
+  test.

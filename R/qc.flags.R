@@ -34,7 +34,10 @@
 #'                precision (MAD of first differences / sqrt(2) on its flagged
 #'                rows) exceeds \code{noisy.mult} times the record (or group)
 #'                precision from \code{\link[goFlux]{empirical.prec}}: a
-#'                disturbed closure. Default 1.5. Needs \code{dataframe}.
+#'                disturbed closure. When the record was logged at more than
+#'                one interval, each closure is compared with the record
+#'                precision at its own logging interval (the \code{dt_s} of
+#'                \code{empirical.prec}). Default 1.5. Needs \code{dataframe}.
 #'
 #' @details
 #' \code{qc.convex} fires when the Hutchinson-Mosier curvature is convex
@@ -135,13 +138,29 @@ qc.flags <- function(flux.result, dataframe = NULL, gastype = NULL,
     if(!is.null(noisy.mult)){
       s.clo <- per(function(x){ v <- x[[gastype]][!is.na(x[[gastype]])]
         if(length(v) < 3) NA_real_ else stats::mad(diff(v), constant = 1.4826) / sqrt(2) })
+      # empirical.prec() returns one row per logging interval (dt_s) when the
+      # record changed interval. Compare each closure with the record (group)
+      # precision at the closure's own interval (median spacing of its flagged
+      # rows, nearest 0.5 s); fall back to the interval with the most
+      # differences when none matches (or without POSIX.time).
+      dt.clo <- if(any(grepl("\\<POSIX.time\\>", names(dataframe)))){
+        per(function(x){ dd <- diff(as.numeric(x$POSIX.time)); dd <- dd[is.finite(dd) & dd > 0]
+          if(length(dd) < 1) NA_real_ else round(stats::median(dd) * 2) / 2 })
+      } else rep(NA_real_, n)
+      pick <- function(ep, dt){
+        if(nrow(ep) == 0) return(NA_real_)
+        i <- if(is.na(dt)) integer(0) else which(!is.na(ep$dt_s) & ep$dt_s == dt)
+        if(length(i) == 0) i <- which.max(ifelse(is.na(ep$n), -1, ep$n))
+        ep$prec[i[1]] }
       if(is.null(by)){
-        s.rec <- rep(empirical.prec(dataframe, gastype)$prec, n)
+        ep <- empirical.prec(dataframe, gastype)
+        s.rec <- vapply(dt.clo, function(dt) pick(ep, dt), numeric(1))
       } else {
         tg <- g[match(as.character(dataframe$UniqueID), uid)]
-        dd <- dataframe; dd$.by <- tg
-        ep <- empirical.prec(dd[!is.na(dd$.by), ], gastype, by = ".by")
-        s.rec <- ep$prec[match(g, ep$.by)]
+        dd <- dataframe; dd$qc_by <- tg
+        ep <- empirical.prec(dd[!is.na(dd$qc_by), ], gastype, by = "qc_by")
+        s.rec <- vapply(seq_len(n), function(i)
+          pick(ep[ep$qc_by == g[i], , drop = FALSE], dt.clo[i]), numeric(1))
       }
       fx$qc.noisy.ratio <- s.clo / s.rec
       fx$qc.noisy <- ifelse(is.finite(fx$qc.noisy.ratio), fx$qc.noisy.ratio > noisy.mult, NA)

@@ -16,3 +16,21 @@ test_that("qc.flags appends flags only and co2.tracer joins on UniqueID", {
   expect_length(tr, nrow(best)); expect_true(is.logical(tr))
   expect_true(is.na(co2.tracer(co2, data.frame(UniqueID = "zzz"))))
 })
+
+test_that("qc.flags: qc.noisy compares each closure with the record precision of its own logging interval", {
+  data(manID.UGGA)
+  u <- manID.UGGA
+  u5 <- u[seq(1, nrow(u), by = 5), ]; u5$UniqueID <- paste0(u5$UniqueID, "_5s")   # same closure logged every 5 s
+  both <- rbind(u, u5)
+  best <- suppressWarnings(best.flux(goFlux(both, "CH4dry_ppb", warn.length = 10)))
+  # the record has two logging intervals: empirical.prec warns, qc.flags still works
+  expect_warning(q <- qc.flags(best, dataframe = both, gastype = "CH4dry_ppb"), "2 logging intervals")
+  expect_equal(nrow(q), 2L)
+  expect_true(is.logical(q$qc.noisy)); expect_true(all(is.finite(q$qc.noisy.ratio)))
+  # each closure vs the record precision at its own interval: neither is "noisy"
+  expect_equal(q$qc.noisy, c(FALSE, FALSE))
+  # 'by' path: one group per interval, no warning
+  best$camp <- ifelse(grepl("_5s$", best$UniqueID), "b", "a")
+  expect_silent(qb <- qc.flags(best, dataframe = both, gastype = "CH4dry_ppb", by = "camp"))
+  expect_equal(qb$qc.noisy, c(FALSE, FALSE))
+})

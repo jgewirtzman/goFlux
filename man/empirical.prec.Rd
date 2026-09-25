@@ -4,7 +4,13 @@
 \alias{empirical.prec}
 \title{Empirical instrument precision from first differences}
 \usage{
-empirical.prec(dataframe, gastype, method = c("mad", "allan"), by = NULL)
+empirical.prec(
+  dataframe,
+  gastype,
+  method = c("mad", "allan"),
+  by = NULL,
+  tol = 0.2
+)
 }
 \arguments{
 \item{dataframe}{data.frame; output from import or ID functions
@@ -30,11 +36,18 @@ with \code{flag == 1}.}
 column) over which the precision is estimated. Default
 \code{NULL}: one value for the whole record. Ignored for
 \code{method = "allan"}, which is always per \code{UniqueID}.}
+
+\item{tol}{numerical; for \code{method = "mad"}, the fractional change in
+the spacing of \code{POSIX.time} that starts a new run of
+constant logging interval (default 0.2, i.e. 20 \%). See Details.}
 }
 \value{
 A data.frame with one row per record, group or \code{UniqueID}:
          the grouping column (if any) and \code{prec} in the units of
-         \code{gastype}, plus \code{n} (differences used).
+         \code{gastype}, plus \code{n} (differences used). For
+         \code{method = "mad"} a trailing column \code{dt_s} gives the
+         logging interval (seconds) the precision refers to, and a record
+         with several intervals gets one row per interval (see Details).
 }
 \description{
 Estimates the instrument precision (1 sigma) of a gas measurement from the
@@ -49,15 +62,40 @@ the \code{prec} argument of the import functions (e.g.
 columns of the data frame before \code{\link[goFlux]{goFlux}}: the
 \code{prec} column of the output and \code{\link[goFlux]{MDF}} then use it.
 See \code{\link[goFlux]{MDF}} for the confidence level (\code{conf}).
+
+\strong{Logging interval.} The MAD of first differences describes the noise
+at the interval the data were logged at, so a record whose interval was
+changed mid-way (1 s to 10 s, say) would mix two noise scales in one MAD and
+the result would describe neither. When \code{dataframe} contains
+\code{POSIX.time}, \code{method = "mad"} therefore splits each record (or
+\code{by} group) into runs of constant logging interval: a run breaks where
+the spacing changes by more than \code{tol}; duplicate or backwards
+timestamps are not counted as intervals; runs shorter than 3 differences are
+dropped (a lone gap between files is not a run); the differences of all runs
+with the same interval (rounded to 0.5 s) are pooled into one MAD. The
+interval is returned in \code{dt_s}. With a single interval the output has
+one row per record or group, as before. When more than one interval is
+present, one row \emph{per interval} is returned (so a record or group may
+occupy several rows) and a warning is given; pick the row whose
+\code{dt_s} matches the closures you are evaluating. Without
+\code{POSIX.time} the MAD is taken over the whole record and \code{dt_s} is
+\code{NA}. To compare an empirical precision with a datasheet value quoted
+at 1 s, rescale the latter with \code{\link[goFlux]{spec.at.interval}}.
 }
 \examples{
 data(manID.UGGA)
-# one robust value for the whole record
+# one robust value for the whole record (dt_s = 1: logged at 1 Hz)
 empirical.prec(manID.UGGA, "CH4dry_ppb")
 # per measurement, Allan deviation on the flagged window
 empirical.prec(manID.UGGA, "CH4dry_ppb", method = "allan")
+# a record whose logging interval changed from 1 s to 10 s: one row per
+# interval, with a warning
+t0 <- as.POSIXct("2024-06-01", tz = "UTC")
+mixed <- data.frame(POSIX.time = c(t0 + 0:599, t0 + 600 + 10 * (0:299)),
+                    CH4dry_ppb = 2000 + c(rnorm(600, 0, 1), rnorm(300, 0, 0.4)))
+empirical.prec(mixed, "CH4dry_ppb")
 }
 \seealso{
 \code{\link[goFlux]{MDF}}, \code{\link[goFlux]{goFlux}},
-         \code{\link[goFlux]{best.flux}}
+         \code{\link[goFlux]{best.flux}}, \code{\link[goFlux]{spec.at.interval}}
 }
