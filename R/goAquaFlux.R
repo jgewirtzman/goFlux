@@ -92,6 +92,15 @@
 #' @param diffusion.minimum_window Minimum number of observations required
 #'   to compute diffusive flux before the first bubble event.
 #'
+#' @param diffusion.window Character; \code{"pre_bubble"} (default) fits the
+#'   diffusive flux of the bubble gas on the observations before the first
+#'   bubble; \code{"deebulliated"} subtracts the fitted bubble models from the
+#'   trace and fits on the whole incubation (see
+#'   \code{\link{goAquaFlux.diffusive}}). The window used is reported in the
+#'   \code{diffusive_window} column of \code{flux_summary}, and the
+#'   de-ebulliated traces (with the excluded rise samples at \code{flag = 0})
+#'   are returned as a fourth element, \code{deebulliated}, for plotting.
+#'
 #' @param return_df Logical. If \code{TRUE} (default) the function returns a
 #'   tidy list of three data frames (see \strong{Value}). If \code{FALSE}, the
 #'   raw per-incubation results list is returned instead, which is convenient
@@ -192,12 +201,14 @@ goAquaFlux <- function(dataframe,
 
                        # Diffusive flux
                        diffusion.minimum_window = 30,
+                       diffusion.window = c("pre_bubble", "deebulliated"),
 
                        # Do you want results as dataframe? Default is list.
                        return_df = TRUE) {
 
 
   # ------------------- Check arguments -------------------
+  diffusion.window <- match.arg(diffusion.window)
 
   is_scalar_num <- function(x) {
     is.numeric(x) && length(x) == 1L && !is.na(x) && is.finite(x)}
@@ -769,7 +780,8 @@ goAquaFlux <- function(dataframe,
                                  ## truncated correctly for the bubble gas and,
                                  ## for other gases, only on an abrupt change.
       bubbles = bubbles,
-      minimum_window = diffusion.minimum_window
+      minimum_window = diffusion.minimum_window,
+      diffusive.window = diffusion.window
     )
 
 
@@ -810,6 +822,7 @@ goAquaFlux <- function(dataframe,
       flux_diffusive = diffusive_flux$flux,
       SE_diffusive = diffusive_flux$SE,
       n_obs.diffusion = diffusive_flux$n_used,
+      diffusive_window = diffusive_flux$window,
 
       flux_ebullition = ebullition_flux$flux,
       SE_ebullition = ebullition_flux$SE,
@@ -820,7 +833,8 @@ goAquaFlux <- function(dataframe,
     flux.res.ls[[f]] <- list(
       flux_summary = flux_summary,
       bubbles = bubbles,
-      best.diffusive.flux = diffusive_flux$best.flux.output
+      best.diffusive.flux = diffusive_flux$best.flux.output,
+      deebulliated = diffusive_flux$deebulliated
     )
 
   }
@@ -837,6 +851,7 @@ goAquaFlux <- function(dataframe,
   df_bubbles <- .bind_with_id(flux.res.ls, "bubbles")
 
   df_diffusive <- .bind_with_id(flux.res.ls, "best.diffusive.flux")
+  df_deebulliated <- .bind_with_id(flux.res.ls, "deebulliated")
 
   # order by UniqueID
   df_flux_summary <- df_flux_summary[order(df_flux_summary$UniqueID), ]
@@ -851,7 +866,8 @@ goAquaFlux <- function(dataframe,
   return(list(
     flux_summary = df_flux_summary,
     bubbles = df_bubbles,
-    diffusive = df_diffusive
+    diffusive = df_diffusive,
+    deebulliated = df_deebulliated
   ))
 }
 

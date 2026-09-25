@@ -25,6 +25,7 @@ goAquaFlux(
   ebullition.final_window_min = 30,
   ebullition.window_C0Cf = 10,
   diffusion.minimum_window = 30,
+  diffusion.window = c("pre_bubble", "deebulliated"),
   return_df = TRUE
 )
 }
@@ -103,6 +104,15 @@ initial and final concentrations for the endpoint flux estimate.}
 
 \item{diffusion.minimum_window}{Minimum number of observations required
 to compute diffusive flux before the first bubble event.}
+
+\item{diffusion.window}{Character; \code{"pre_bubble"} (default) fits the
+diffusive flux of the bubble gas on the observations before the first
+bubble; \code{"deebulliated"} subtracts the fitted bubble models from the
+trace and fits on the whole incubation (see
+\code{\link{goAquaFlux.diffusive}}). The window used is reported in the
+\code{diffusive_window} column of \code{flux_summary}, and the
+de-ebulliated traces (with the excluded rise samples at \code{flag = 0})
+are returned as a fourth element, \code{deebulliated}, for plotting.}
 
 \item{return_df}{Logical. If \code{TRUE} (default) the function returns a
 tidy list of three data frames (see \strong{Value}). If \code{FALSE}, the
