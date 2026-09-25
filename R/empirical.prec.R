@@ -134,6 +134,10 @@ empirical.prec <- function(dataframe, gastype, method = c("mad", "allan"), by = 
       out <- do.call(rbind, lapply(split(idx, dt_r), function(i)
         data.frame(prec = stats::mad(dx[i], constant = 1.4826) / sqrt(2),
                    n = length(i), dt_s = round(d[i[1]] * 2) / 2)))
+      # an interval with fewer than 3 differences (e.g. a single 4-s gap left
+      # by a duplicate timestamp in a 5-s record) is not a logging interval
+      out <- out[out$n >= 3, , drop = FALSE]
+      if(nrow(out) == 0) return(none)
       rownames(out) <- NULL
       out
     }

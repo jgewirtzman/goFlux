@@ -31,7 +31,8 @@ Based on `chore/testthat-skeleton` (tests/testthat.R, `testthat` in Suggests).
   breaks where the spacing changes by > `tol` (20 %), duplicate/backwards
   timestamps are ignored, runs shorter than 3 differences are dropped (a lone
   gap between files is not a run), differences are pooled per interval
-  (rounded to 0.5 s). The interval is returned in a trailing `dt_s` column; a
+  (rounded to 0.5 s); an interval with fewer than 3 pooled differences is
+  dropped. The interval is returned in a trailing `dt_s` column; a
   record (or `by` group) with more than one interval gets one row per interval
   and a warning. Single-interval output keeps its shape (`prec`, `n`) plus
   `dt_s`. Without `POSIX.time`: pooled MAD as before, `dt_s = NA`.

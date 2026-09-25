@@ -65,6 +65,13 @@ test_that("empirical.prec: MAD per run of constant logging interval", {
   dup <- one; dup$POSIX.time[c(100, 200)] <- dup$POSIX.time[c(99, 199)]
   expect_silent(r5 <- empirical.prec(dup, "CH4dry_ppb"))
   expect_equal(r5$dt_s, 1)
+  # a single off-interval difference inside a run (a 4-s gap left by a duplicate
+  # timestamp in a 5-s record) is not an interval of its own: still one row
+  data(manID.UGGA)
+  u5 <- manID.UGGA[seq(1, nrow(manID.UGGA), by = 5), ]
+  expect_equal(sort(unique(diff(as.numeric(u5$POSIX.time)))), c(4, 5))
+  expect_silent(r6 <- empirical.prec(u5, "CH4dry_ppb"))
+  expect_equal(nrow(r6), 1L); expect_equal(r6$dt_s, 5)
   # fewer than 3 usable differences: NA
   expect_true(is.na(empirical.prec(one[1:3, ], "CH4dry_ppb")$prec))
   # tol
