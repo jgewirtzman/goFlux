@@ -27,6 +27,7 @@ Collate:
     'best.flux.R'
     'click.peak2.R'
     'crop.meas.R'
+    'empirical.prec.R'
     'find.bubbles.R'
     'flux.plot.R'
     'flux.plot.aqua.R'
@@ -73,6 +74,7 @@ Collate:
     'manID.G2201i-data.R'
     'manID.UGGA-data.R'
     'obs.win.R'
+    'qc.flags.R'
 Suggests:
     testthat (>= 3.0.0)
 Imports: AICcmodavg, data.table, dplyr, ggnewscale, ggplot2, ggstar, graphics, grDevices, grid, gridExtra, jsonlite, lifecycle, lubridate, minpack.lm, msm, pbapply, plyr, purrr, rjson, rlang, rlist, SimDesign, stats, stringr, tibble, tidyr, toOrdinal, utils, zoo
