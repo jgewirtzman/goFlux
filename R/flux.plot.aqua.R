@@ -215,7 +215,11 @@
 #'
 #' @param flux.results.ls The list returned by \code{\link{goAquaFlux}} (with
 #'   \code{return_df = TRUE}), containing \code{flux_summary}, \code{bubbles}
-#'   and \code{diffusive}. \code{bubbles} may be \code{NULL} when no
+#'   and \code{diffusive}, plus \code{deebulliated} when \code{goAquaFlux()}
+#'   was run with \code{diffusion.window = "deebulliated"}: those traces are
+#'   then drawn as well (retained samples in blue, the masked rise samples as
+#'   grey crosses) and the LM/HM fits span the whole incubation because they
+#'   were made on them. \code{bubbles} may be \code{NULL} when no
 #'   ebullition detection was run. For backwards compatibility a plain
 #'   \code{best.flux}-style data.frame may also be supplied, in which case the
 #'   call is delegated to \code{\link[goFlux]{flux.plot}} and only the diffusive
@@ -469,6 +473,10 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
 
   data_corr      <- lapply(data_split, function(d) d %>% filter(flag == 1))
   data_diffusion <- flux.results.ls$diffusive
+  # De-ebulliated traces, present when goAquaFlux() was run with
+  # diffusion.window = "deebulliated" (NULL otherwise).
+  data_deeb <- flux.results.ls$deebulliated
+  if (!is.data.frame(data_deeb) || !gastype %in% names(data_deeb)) data_deeb <- NULL
 
   # Silence R CMD check notes on columns referenced by non-standard evaluation.
   UniqueID <- Etime <- flag <- flag_lab <- HM_mod <- start <- end <- NULL
@@ -523,6 +531,15 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
       df_diff <- df_good[df_good$Etime <= t_end, ]
     } else {
       df_diff <- df_good
+    }
+
+    ## De-ebulliated trace of this incubation: the diffusive models were then
+    ## fitted on its retained (flag == 1) samples over the whole incubation.
+    deb_f <- NULL
+    if (!is.null(data_deeb)) {
+      deb_f <- data_deeb[data_deeb$UniqueID == incubation_id, ]
+      deb_f <- deb_f[order(deb_f$Etime), ]
+      if (nrow(deb_f) == 0) deb_f <- NULL else df_diff <- df_good
     }
 
     ## Ebullition events recorded for this incubation.
@@ -596,6 +613,7 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     y_vals <- na.omit(y_vals)
     ymax <- max(y_vals)
     ymin <- min(y_vals)
+    if (!is.null(deb_f)) ymin <- min(ymin, deb_f[[gastype]], na.rm = TRUE)
     # Guard against a degenerate range (a perfectly flat series).
     ydiff <- if (ymax > ymin) ymax - ymin else max(abs(ymax), 1) * 0.1
 
@@ -645,6 +663,16 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     plot <- plot +
       geom_point(aes(y = .data[[gastype]], shape = flag_lab, alpha = flag_lab),
                  colour = col_points, size = 0.5)
+
+    ## De-ebulliated trace: retained samples in blue, the masked rise samples
+    ## (flag == 0) as grey crosses. The LM/HM fits below were made on it.
+    if (!is.null(deb_f)) {
+      plot <- plot +
+        geom_point(data = deb_f[deb_f$flag != 1, ], aes(y = .data[[gastype]]),
+                   colour = "grey55", shape = 4, size = 0.9) +
+        geom_point(data = deb_f[deb_f$flag == 1, ],
+                   aes(y = .data[[gastype]], colour = "de-ebulliated"), size = 0.5)
+    }
 
     ## Bubble fits, drawn below the LM and HM fits so that those stay visible
     ## where they meet. geom_path (not geom_line) keeps the row order, so the
@@ -710,7 +738,8 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
       scale_alpha_manual(NULL, values = c("retained" = 0.9, "discarded" = 0.45)) +
       scale_colour_manual(NULL, values = c("LM fit"     = col_diffusive,
                                            "HM fit"     = col_hm,
-                                           "bubble fit" = col_ebullitive)) +
+                                           "bubble fit" = col_ebullitive,
+                                           "de-ebulliated" = "steelblue4")) +
       # The fill labels are set by function so that the ebullition key can name
       # the gas the events were detected on, without changing the fill values.
       scale_fill_manual(NULL, values = c("diffusive window"  = col_diffusive,

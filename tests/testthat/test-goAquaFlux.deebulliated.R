@@ -68,3 +68,22 @@ test_that("find.bubbles(second.pass = TRUE) resolves a 12 s pair that the single
   # default goAquaFlux window is now 15, and second.pass is reachable through bubble.args
   expect_equal(formals(goAquaFlux)$bubble.window.size, 15)
 })
+
+test_that("deebulliated diffusive flux carries SE and n, short windows do not fail, and flux.plot.aqua draws the trace", {
+  d <- make_trace()
+  deb <- run(d, diffusion.window = "deebulliated")
+  expect_false(is.na(deb$flux_summary$SE_diffusive)); expect_gt(deb$flux_summary$n_obs.diffusion, 100)
+  short <- d[d$Etime < 25, ]   # 25 observations: too few for find.bubbles()
+  invisible(capture.output(expect_warning(
+    r <- goAquaFlux(short, "CH4dry_ppb", Vtot = 10, Area = 1000, Pcham = 101.325, Tcham = 20,
+                    diffusion.minimum_window = 20), "bubble detection skipped")))
+  expect_false(is.na(r$flux_summary$flux_diffusive)); expect_null(r$bubbles)
+  invisible(capture.output(expect_warning(
+    goAquaFlux(d, "CH4dry_ppb", Vtot = 10, Area = 1000, Pcham = 101.325, Tcham = 20,
+               bubble_gas = "CO2dry_ppm"), "developed for CH4")))
+  skip_if_not_installed("ggplot2")
+  p <- suppressWarnings(flux.plot.aqua(deb, d, "CH4dry_ppb"))
+  expect_s3_class(p[[1]], "ggplot")
+  expect_true(any(vapply(p[[1]]$layers, function(l) "colour" %in% names(l$mapping) &&
+                           identical(rlang::eval_tidy(l$mapping$colour), "de-ebulliated"), logical(1))))
+})

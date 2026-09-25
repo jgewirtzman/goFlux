@@ -1,7 +1,7 @@
 # feat: de-ebulliated diffusive window in goAquaFlux()
 
 **Branch:** `feat/aqua-diffusive-deebulliated`
-**Files:** `R/goAquaFlux.diffusive.R` (new arg, `.deebulliate()` helper), `R/goAquaFlux.R` (pass-through, `diffusive_window` column, `bubble.window.size` default 30 -> 15), `R/find.bubbles.R` (fit loop wrapped in a closure; opt-in `second.pass` and `settle.mult`), `inst/validation/` (synthetic + BlueFlux validation), `man/goAquaFlux.Rd`, `man/goAquaFlux.diffusive.Rd`, `tests/testthat/test-goAquaFlux.deebulliated.R` (new; adds `testthat` to Suggests)
+**Files:** `R/goAquaFlux.diffusive.R` (new arg, `.deebulliate()` helper), `R/goAquaFlux.R` (pass-through, `diffusive_window` column, `bubble.window.size` default 30 -> 15), `R/find.bubbles.R` (fit loop wrapped in a closure; opt-in `second.pass` and `settle.mult`), `inst/validation/` (synthetic + BlueFlux validation), `man/goAquaFlux.Rd`, `man/goAquaFlux.diffusive.Rd`, `tests/testthat/test-goAquaFlux.deebulliated.R` (new)
 
 `goAquaFlux.diffusive()` fits the diffusive flux of the bubble gas on the
 observations before the first bubble, so an incubation that bubbles in the
@@ -44,3 +44,5 @@ halved, +1 % false events on bubble-free traces), and `find.bubbles()` gains the
 `second.pass = TRUE` (re-detect on the residual and refit; +3 points on multi-bubble and
 close-pair hit rates at the same false-positive rate) and `settle.mult` (no measurable
 effect; kept as a knob). `diffusion.window = "pre_bubble"` remains the default.
+
+Based on `chore/testthat-skeleton` (tests/testthat.R, `testthat` in Suggests).

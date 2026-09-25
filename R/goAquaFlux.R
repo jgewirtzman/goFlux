@@ -143,6 +143,17 @@
 #' which evaluates multiple regression models and selects the best model
 #' according to user-defined criteria.
 #'
+#' \strong{Order of operations with \code{\link{auto.deadband}} and
+#' \code{\link{crop.meas}}.} Trim the observation window first, then call
+#' \code{goAquaFlux()}: only the rows with \code{flag == 1} are used, and
+#' \code{Etime} is taken relative to the first retained observation, so bubble
+#' detection, the pre-bubble window and the ebullitive incubation time all
+#' refer to the trimmed window. A bubble that falls inside a deadband is
+#' therefore neither detected nor counted; do not crop after the fact to
+#' remove a bubble, that is what the partition is for. Detection needs at
+#' least 30 retained observations; on shorter windows the incubation is
+#' processed without bubble detection, with a warning.
+#'
 #' @references
 #' Rheault, K., Christiansen, J. R., & Larsen, K. S. (2024). goFlux: A
 #' user-friendly way to calculate GHG fluxes yourself, regardless of user
@@ -214,6 +225,10 @@ goAquaFlux <- function(dataframe,
 
   # ------------------- Check arguments -------------------
   diffusion.window <- match.arg(diffusion.window)
+  if (isTRUE(use_bubble_detection) && !grepl("CH4", bubble_gas)) {
+    warning("bubble detection is run on '", bubble_gas, "'; the detector and its ",
+            "defaults were developed for CH4 steps, check the events by eye", call. = FALSE)
+  }
 
   is_scalar_num <- function(x) {
     is.numeric(x) && length(x) == 1L && !is.na(x) && is.finite(x)}
@@ -730,7 +745,12 @@ goAquaFlux <- function(dataframe,
         list(df = df, bubble_source = bubble_gas,
              window.size = bubble.window.size, method = bubble.method),
         bubble.args)
-      bubbles <- do.call(find.bubbles, .bubble_call)
+      # A window too short for the detector (< 30 observations) should not
+      # sink the incubation: fall back to the diffusive fit, with a warning.
+      bubbles <- tryCatch(do.call(find.bubbles, .bubble_call), error = function(e) {
+        warning("UniqueID ", df$UniqueID[1], ": bubble detection skipped (",
+                conditionMessage(e), ")", call. = FALSE)
+        NULL })
 
     } else {
 

@@ -175,6 +175,17 @@ restrict the time window used for diffusive flux estimation.
 Diffusive fluxes are calculated using the \code{goFlux} framework,
 which evaluates multiple regression models and selects the best model
 according to user-defined criteria.
+
+\strong{Order of operations with \code{\link{auto.deadband}} and
+\code{\link{crop.meas}}.} Trim the observation window first, then call
+\code{goAquaFlux()}: only the rows with \code{flag == 1} are used, and
+\code{Etime} is taken relative to the first retained observation, so bubble
+detection, the pre-bubble window and the ebullitive incubation time all
+refer to the trimmed window. A bubble that falls inside a deadband is
+therefore neither detected nor counted; do not crop after the fact to
+remove a bubble, that is what the partition is for. Detection needs at
+least 30 retained observations; on shorter windows the incubation is
+processed without bubble detection, with a warning.
 }
 \examples{
 \dontrun{
