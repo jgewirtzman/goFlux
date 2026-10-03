@@ -13,6 +13,8 @@ qc.flags(
   min.obs = 60,
   ambient.sigma = 3,
   ambient.secs = 10,
+  ambient.pre = 60,
+  seal.time = "start.time",
   noisy.mult = 1.5
 )
 }
@@ -23,8 +25,10 @@ or \code{\link[goFlux]{goFlux}}.}
 \item{dataframe}{data.frame; optional, the flagged concentration data the
 fluxes were computed from (output of
 \code{\link[goFlux]{click.peak2}} or
-\code{\link[goFlux]{crop.meas}}). Needed for
-\code{qc.ambient} and \code{qc.noisy}.}
+\code{\link[goFlux]{crop.meas}}), including the rows
+before the closure start (the \code{\link[goFlux]{obs.win}}
+shoulder). Needed for \code{qc.ambient}, \code{qc.clock}
+and \code{qc.noisy}.}
 
 \item{gastype}{character string; the gas column of \code{dataframe}.}
 
@@ -34,34 +38,52 @@ fluxes were computed from (output of
 Default 1.5. \code{NULL} skips the flag.}
 
 \item{by}{character string; optional column of \code{flux.result} defining
-the groups (campaign, day, instrument) for \code{qc.c0} and
-\code{qc.noisy}. Default \code{NULL}: all rows.}
+the groups (campaign, day, instrument) for \code{qc.c0} and for the
+group precision used by \code{qc.ambient} and \code{qc.noisy}.
+Default \code{NULL}: all rows.}
 
 \item{min.obs}{numerical; \code{qc.min.obs} fires when \code{nb.obs} is below
 it. Default 60. \code{NULL} skips the flag.}
 
-\item{ambient.sigma, ambient.secs}{numerical; \code{qc.ambient} fires when
-the mean of the first \code{ambient.secs} seconds of the
-flagged window differs from the pre-closure ambient (rows of
-\code{dataframe} before \code{start.time}) by more than
-\code{ambient.sigma} times the closure's Allan precision:
-the chamber was already enriched when the window started.
-Defaults 3 and 10. Needs \code{dataframe}.}
+\item{ambient.sigma}{numerical; \code{qc.ambient} fires when the headspace
+at the moment of sealing differs from the pre-closure ambient
+by more than \code{ambient.sigma} times the tolerance (see
+Details). Default 3. \code{NULL} skips \code{qc.ambient} and
+\code{qc.clock}. Needs \code{dataframe}.}
+
+\item{ambient.secs}{numerical; length (s) of the sealing interval after the
+recorded closure start whose median is compared with ambient.
+Default 10.}
+
+\item{ambient.pre}{numerical; length (s) of the pre-closure record before
+the recorded closure start that gives the ambient median and
+its spread. Default 60.}
+
+\item{seal.time}{character string; the column of \code{dataframe} holding
+the recorded closure start (the moment of sealing). Default
+\code{"start.time"}, the auxfile start carried by
+\code{\link[goFlux]{obs.win}} and
+\code{\link[goFlux]{click.peak2}}. Do not use
+\code{start.time_corr} (the start of the fitting window) or
+the \code{start.time} returned by
+\code{\link[goFlux]{crop.meas}}, which has been moved by the
+dead band: keep the original start in a column of its own and
+name it here.}
 
 \item{noisy.mult}{numerical; \code{qc.noisy} fires when the closure's own
-precision (MAD of first differences / sqrt(2) on its flagged
-rows) exceeds \code{noisy.mult} times the record (or group)
-precision from \code{\link[goFlux]{empirical.prec}}: a
-disturbed closure. When the record was logged at more than
-one interval, each closure is compared with the record
-precision at its own logging interval (the \code{dt_s} of
-\code{empirical.prec}). Default 1.5. Needs \code{dataframe}.}
+precision exceeds \code{noisy.mult} times the group precision
+(both from \code{\link[goFlux]{empirical.prec}}, second
+differences of the flagged rows; the group value is the median
+over its closures, at the closure's own logging interval): a
+disturbed closure. Default 1.5. Needs \code{dataframe}.}
 }
 \value{
 \code{flux.result} with the columns \code{qc.c0}, \code{qc.convex},
-         \code{qc.min.obs}, \code{qc.ambient}, \code{qc.noisy} (those
-         requested) and \code{qc.any} appended, plus the helper values
-         \code{qc.c0.ratio}, \code{qc.ambient.dev} (in sigma units) and
+         \code{qc.min.obs}, \code{qc.ambient}, \code{qc.clock},
+         \code{qc.noisy} (those requested) and \code{qc.any} appended, plus
+         the helper values \code{qc.c0.ratio}, \code{qc.ambient.dev} and
+         \code{qc.ambient.drift} (signed, in units of the ambient
+         tolerance), \code{qc.prec} (the group precision used) and
          \code{qc.noisy.ratio}.
 }
 \description{
@@ -72,6 +94,37 @@ fired, \code{NA} = could not be evaluated), and \code{qc.any} says whether
 any fired. Filter on them downstream as you see fit.
 }
 \details{
+\strong{Ambient start (\code{qc.ambient}).} The check is made at the moment
+of sealing, not at the start of the fitting window, which follows the
+dead-band transient and may legitimately be enriched already. The median of
+the first \code{ambient.secs} seconds after the recorded closure start
+(\code{seal.time}) is compared with the median of the \code{ambient.pre}
+seconds before it. The flag fires when
+\deqn{|level_{seal} - ambient| > ambient.sigma \times \max(\sigma, MAD_{pre})}{|seal - ambient| > ambient.sigma x max(sigma, MAD_pre)}
+where \eqn{\sigma} is the group precision from
+\code{\link[goFlux]{empirical.prec}} and \eqn{MAD_{pre}}{MAD_pre} the
+normal-consistent MAD of the pre-closure record (ambient air varies more
+than the analyzer noise). \code{qc.ambient.dev} is the signed difference in
+units of that tolerance. The pre-closure trend over \code{ambient.pre}
+(\code{qc.ambient.drift}, in the same units) is reported but never raises
+the flag: air outside a sealed chamber cannot bias its slope. A closure that
+rises steeply moves measurably within \code{ambient.secs}; shorten it for
+fast-rising closures.
+
+\strong{Clock mismatch (\code{qc.clock}).} When the fitting window begins
+more than one logging interval before the recorded start, the field and
+analyzer clocks disagree and the "pre-closure" record may lie inside the
+closure: \code{qc.clock} is \code{TRUE} and \code{qc.ambient} is \code{NA}
+(not evaluated).
+
+\strong{Drift is not flagged here.} A difference-based precision is blind
+to instrument drift and to slow leaks, which change the concentration
+smoothly over a closure and look like a flux. None of these flags measures
+them. Make periodic blank closures on an inert surface (a sealed chamber on
+a plate or foil): their apparent flux is the drift or leak floor to compare
+fluxes with. The ambient-shoulder trend (\code{qc.ambient.drift}) can flag
+an unstable analyzer but cannot measure drift inside the chamber.
+
 \code{qc.convex} fires when the Hutchinson-Mosier curvature is convex
 (\code{HM.k < 0}, accelerating concentration change, which no chamber
 mechanism produces and which points at a leak, a disturbance or a delayed
@@ -89,8 +142,9 @@ CH4_flux <- goFlux(manID.UGGA, "CH4dry_ppb")
 CH4_best <- best.flux(CH4_flux)
 CH4_qc <- qc.flags(CH4_best, dataframe = manID.UGGA, gastype = "CH4dry_ppb")
 CH4_qc[, c("UniqueID", "best.flux", "qc.c0", "qc.convex", "qc.min.obs",
-           "qc.ambient", "qc.noisy", "qc.any")]
+           "qc.ambient", "qc.ambient.dev", "qc.clock", "qc.noisy", "qc.any")]
 }
 \seealso{
-\code{\link[goFlux]{co2.tracer}}, \code{\link[goFlux]{best.flux}}
+\code{\link[goFlux]{co2.tracer}}, \code{\link[goFlux]{best.flux}},
+         \code{\link[goFlux]{empirical.prec}}
 }

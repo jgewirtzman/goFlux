@@ -2,98 +2,199 @@
 % Please edit documentation in R/empirical.prec.R
 \name{empirical.prec}
 \alias{empirical.prec}
-\title{Empirical instrument precision from first differences}
+\title{Empirical instrument precision from the closures themselves}
 \usage{
 empirical.prec(
   dataframe,
   gastype,
-  method = c("mad", "allan"),
+  method = c("hadamard", "allan", "mad_diff1"),
   by = NULL,
-  tol = 0.2
+  tol = 0.2,
+  warn = TRUE
 )
 }
 \arguments{
-\item{dataframe}{data.frame; output from import or ID functions
-(\code{\link[goFlux]{obs.win}}, \code{\link[goFlux]{click.peak2}},
-\code{\link[goFlux]{crop.meas}}) or a whole imported record.
-Must contain \code{gastype}; for \code{method = "allan"} it
-must also contain \code{UniqueID} and \code{flag}.}
+\item{dataframe}{data.frame; output from the ID functions
+(\code{\link[goFlux]{obs.win}} followed by
+\code{\link[goFlux]{click.peak2}} or
+\code{\link[goFlux]{crop.meas}}). Must contain
+\code{gastype}; for \code{method = "hadamard"} and
+\code{"allan"} it must also contain \code{UniqueID} and
+\code{flag}. \code{method = "mad_diff1"} also accepts a
+whole imported record without \code{UniqueID}.}
 
 \item{gastype}{character string; the gas column, e.g. \code{"CH4dry_ppb"}.}
 
-\item{method}{character string; \code{"mad"} (default) is
-\eqn{MAD(\Delta x) \times 1.4826 / \sqrt{2}} over the whole
-record (or per group, see \code{by}): robust to the isolated
-large differences produced by moves, breaths and chamber
-changes, so the entire field record can be used without
-selecting quiet periods. \code{"allan"} is
-\eqn{SD(\Delta x) / \sqrt{2}}, the Allan deviation at one
-sampling interval, computed per \code{UniqueID} on the rows
-with \code{flag == 1}.}
+\item{method}{character string; \code{"hadamard"} (default), the
+per-closure second-difference precision summarised by its
+median over the closures of each group (see Details);
+\code{"allan"}, \eqn{SD(\Delta x) / \sqrt{2}} per
+\code{UniqueID} on the rows with \code{flag == 1} (the Allan
+deviation at one sampling interval); \code{"mad_diff1"},
+superseded, \eqn{MAD(\Delta x) \times 1.4826 / \sqrt{2}}
+over the whole record (or \code{by} group), kept for
+comparison with earlier results only (see Details).
+\code{method = "mad"}, the name used before, partially
+matches \code{"mad_diff1"}.}
 
-\item{by}{character string; for \code{method = "mad"}, an optional column of
-\code{dataframe} defining the field periods (e.g. a campaign or day
-column) over which the precision is estimated. Default
-\code{NULL}: one value for the whole record. Ignored for
-\code{method = "allan"}, which is always per \code{UniqueID}.}
+\item{by}{character string; an optional column of \code{dataframe} defining
+the groups (e.g. analyzer x field day) over which the precision
+is summarised. Default \code{NULL}: one group, all closures.
+Ignored for \code{method = "allan"}, which is always per
+\code{UniqueID}. Use \code{by = "UniqueID"} for one row per
+closure (the per-closure values are also returned as the
+attribute \code{"closures"}).}
 
-\item{tol}{numerical; for \code{method = "mad"}, the fractional change in
-the spacing of \code{POSIX.time} that starts a new run of
-constant logging interval (default 0.2, i.e. 20 \%). See Details.}
+\item{tol}{numerical; the fractional change in the spacing of
+\code{POSIX.time} that starts a new run of constant logging
+interval (default 0.2, i.e. 20 \%). Differences never span two
+runs. See Details.}
+
+\item{warn}{logical; give the diagnostic warnings described under
+\emph{Checks}? Default \code{TRUE}. The check values are
+returned as columns either way.}
 }
 \value{
-A data.frame with one row per record, group or \code{UniqueID}:
-         the grouping column (if any) and \code{prec} in the units of
-         \code{gastype}, plus \code{n} (differences used). For
-         \code{method = "mad"} a trailing column \code{dt_s} gives the
-         logging interval (seconds) the precision refers to, and a record
-         with several intervals gets one row per interval (see Details).
+A data.frame. For \code{method = "hadamard"}: one row per group (and
+         per logging interval, see Details) with the grouping column (if
+         any), \code{prec} (median of the per-closure precisions, units of
+         \code{gastype}), \code{n.closures} (closures with a finite
+         \eqn{\sigma_i}), \code{dt_s} (logging interval, s),
+         \code{n.diff} (second differences used), \code{ac1},
+         \code{zero.frac}, \code{prec.d1c} and \code{d1c.ratio} (see
+         \emph{Checks}). The per-closure values (\code{UniqueID}, the
+         grouping column, \code{dt_s}, \code{prec}, \code{n.diff},
+         \code{ac1}, \code{zero.frac}, \code{prec.d1c}, \code{d1c.ratio})
+         are in the attribute \code{"closures"}. For \code{"allan"}: one row
+         per \code{UniqueID} with \code{prec} and \code{n} (differences
+         used). For \code{"mad_diff1"}: one row per record or group and
+         logging interval with \code{prec}, \code{n} (differences used) and
+         \code{dt_s}.
 }
 \description{
 Estimates the instrument precision (1 sigma) of a gas measurement from the
-data themselves, instead of the manufacturer specification. First
-differences remove any smooth trend, so the flux signal cancels and only the
-instrument noise remains: for white noise \eqn{Var(x_{i+1} - x_i) = 2\sigma^2}.
+data, instead of the manufacturer specification. The default estimator
+works closure by closure on the second differences of the gas inside the
+fitted window, which cancel the flux (any straight line) exactly, and
+summarises a group of closures (an analyzer on a field day, say) by the
+median of the per-closure values.
 }
 \details{
-To use an empirical precision for the minimal detectable flux, pass it to
-the \code{prec} argument of the import functions (e.g.
-\code{\link[goFlux]{import.LI7810}}) or write it into the \code{*_prec}
-columns of the data frame before \code{\link[goFlux]{goFlux}}: the
-\code{prec} column of the output and \code{\link[goFlux]{MDF}} then use it.
-See \code{\link[goFlux]{MDF}} for the confidence level (\code{conf}).
+\strong{Estimator (\code{method = "hadamard"}).} For each closure
+(\code{UniqueID}) the rows with \code{flag == 1} are put in time order and
+the precision is
+\deqn{\sigma_i = MAD(x_{k+1} - 2 x_k + x_{k-1}) / \sqrt{6},}{sigma_i = MAD(x[k+1] - 2 x[k] + x[k-1]) / sqrt(6),}
+where MAD is the normal-consistent median absolute deviation about the
+median (\code{stats::mad}, constant 1.4826). A straight line, i.e. the flux,
+cancels exactly in a second difference, and slow curvature leaves only a
+term of order curvature x \eqn{\Delta t^2}; white noise of standard
+deviation \eqn{\sigma} gives \eqn{Var = 6 \sigma^2}. This is the
+one-sample Hadamard deviation, the drift-insensitive counterpart of the
+Allan deviation (Riley 2008). A closure needs at least 6 second differences;
+otherwise its \eqn{\sigma_i} is \code{NA}. The precision of a group
+(\code{by}) is the \emph{median} of \eqn{\sigma_i} over its closures, so that
+a minority of very large, curved or bubbly closures cannot set the group
+value.
 
-\strong{Logging interval.} The MAD of first differences describes the noise
-at the interval the data were logged at, so a record whose interval was
-changed mid-way (1 s to 10 s, say) would mix two noise scales in one MAD and
-the result would describe neither. When \code{dataframe} contains
-\code{POSIX.time}, \code{method = "mad"} therefore splits each record (or
-\code{by} group) into runs of constant logging interval: a run breaks where
-the spacing changes by more than \code{tol}; duplicate or backwards
-timestamps are not counted as intervals; runs shorter than 3 differences are
-dropped (a lone gap between files is not a run); the differences of all runs
-with the same interval (rounded to 0.5 s) are pooled into one MAD. The
-interval is returned in \code{dt_s}. With a single interval the output has
-one row per record or group, as before. When more than one interval is
-present, one row \emph{per interval} is returned (so a record or group may
-occupy several rows) and a warning is given; pick the row whose
+\strong{Why not the whole-record first-difference MAD.} The superseded
+\code{method = "mad_diff1"} pools the first differences of a whole record
+and centres them on a single median. A first difference contains the
+closure's slope x \eqn{\Delta t}, and closures differ in slope, so the
+spread of slopes between closures is counted as instrument noise. Two
+noise-free closures rising 0 and 10 ppb per step give a "precision" of
+about 7 ppb. The inflation is small at 1 Hz but reaches 1.4-2.3x at 5-10 s
+logging, where the slope part of a difference is 5-10 times larger
+(\url{https://github.com/jgewirtzman/fluxqc/issues/1}). It is kept for
+comparison with earlier results only.
+
+\strong{Logging interval.} A second difference must not span a change of
+logging interval or a gap. When \code{dataframe} contains
+\code{POSIX.time}, each closure is split into runs of constant logging
+interval: a run breaks where the spacing changes by more than \code{tol};
+duplicate or backwards timestamps break a run; differences are taken within
+runs only. A closure's interval \code{dt_s} is the median spacing of its
+flagged rows (nearest 0.5 s), and only differences at that interval are
+used. If the closures of a group were logged at different intervals, one
+row per interval is returned and a warning is given: pick the row whose
 \code{dt_s} matches the closures you are evaluating. Without
-\code{POSIX.time} the MAD is taken over the whole record and \code{dt_s} is
-\code{NA}. To compare an empirical precision with a datasheet value quoted
-at 1 s, rescale the latter with \code{\link[goFlux]{spec.at.interval}}.
+\code{POSIX.time} the rows of each closure are taken as one run in their
+present order and \code{dt_s} is \code{NA}. For \code{"mad_diff1"} the same
+run logic applies to the whole record (runs shorter than 3 differences,
+and intervals seen fewer than 3 times, are dropped).
+
+\strong{Checks} (returned as columns; \code{warn = TRUE} also warns):
+\describe{
+  \item{\code{ac1}}{lag-1 autocorrelation of the second differences
+    (median over closures). For white noise it is -2/3. Above -0.5 the noise
+    is red (random-walk or drift-dominated): neighbouring samples are not
+    independent, the second differences understate the noise that matters
+    over a closure, and an Allan plot is needed.}
+  \item{\code{zero.frac}}{fraction of first differences that are exactly
+    zero (pooled over closures). At 0.3 or more the analyzer probably logs
+    one gas per row and carries the other forward (e.g. the Picarro G4301,
+    whose CH4 is fresh on every other row only), or the record is quantized
+    at a resolution close to the noise. Either way a difference-based
+    precision is unreliable: first differences are biased low (by 10-40x
+    for alternate-row loggers), and second differences no longer cancel the
+    slope, because the fresh values are two rows apart. Keep each gas's
+    fresh rows before estimating, or quote the resolution.}
+  \item{\code{prec.d1c}, \code{d1c.ratio}}{the precision from first
+    differences centred on each closure's own median
+    (\eqn{MAD / \sqrt{2}}{MAD / sqrt(2)} of the pooled centred differences)
+    and its ratio to \code{prec}. For white noise around straight lines the
+    ratio is 1; above 1.2 (warned) curvature or trend leaks into the first
+    differences, or the noise is not white; below 0.8 (warned) points at
+    alternate-row or quantized data.}
+}
+
+\strong{Drift is a separate problem.} Any difference-based precision,
+this one included, is blind to instrument drift and to slow leaks: both
+change the concentration smoothly over a closure and so look like a flux,
+not like noise. Bound them with periodic blank closures on an inert surface
+(a sealed chamber on a plate or foil), whose apparent flux is the drift or
+leak floor; the trend of the ambient record before and after closures can
+flag an unstable analyzer but cannot measure drift inside the chamber.
+
+\strong{Datasheet comparison.} Manufacturers quote precision at 1 s. A record
+logged every \eqn{\Delta t} seconds averages white noise down by
+\eqn{\sqrt{\Delta t}}{sqrt(dt)}, so before comparing the \code{prec} of a
+5 s or 10 s record with the datasheet, divide the datasheet value by
+\eqn{\sqrt{\Delta t}}{sqrt(dt)} (\code{\link[goFlux]{spec.at.interval}};
+\code{dt_s} is returned for this). Otherwise an analyzer can appear to beat
+its datasheet when it is several times worse. The rescaling assumes white
+noise and fails beyond the analyzer's Allan minimum.
+
+\strong{Use in the MDF.} Pass the result to the \code{prec} argument of the
+import functions (e.g. \code{\link[goFlux]{import.LI7810}}) or write it into
+the \code{*_prec} columns of the data frame before
+\code{\link[goFlux]{goFlux}}: the \code{prec} column of the output and
+\code{\link[goFlux]{MDF}} then use it, MDF = z x prec / t x flux.term with
+\code{t} in seconds. See \code{\link[goFlux]{MDF}} for the confidence level
+(\code{conf}).
 }
 \examples{
 data(manID.UGGA)
-# one robust value for the whole record (dt_s = 1: logged at 1 Hz)
+# second-difference precision of the closure (one group), with the checks
 empirical.prec(manID.UGGA, "CH4dry_ppb")
-# per measurement, Allan deviation on the flagged window
+# per closure
+attr(empirical.prec(manID.UGGA, "CH4dry_ppb"), "closures")
+# Allan deviation on the flagged window
 empirical.prec(manID.UGGA, "CH4dry_ppb", method = "allan")
-# a record whose logging interval changed from 1 s to 10 s: one row per
-# interval, with a warning
+# two closures logged every 10 s with very different slopes: the median
+# second-difference precision recovers the noise (1 ppb); the superseded
+# whole-record first-difference MAD counts the slope difference as noise
+set.seed(1)
 t0 <- as.POSIXct("2024-06-01", tz = "UTC")
-mixed <- data.frame(POSIX.time = c(t0 + 0:599, t0 + 600 + 10 * (0:299)),
-                    CH4dry_ppb = 2000 + c(rnorm(600, 0, 1), rnorm(300, 0, 0.4)))
-empirical.prec(mixed, "CH4dry_ppb")
+two <- data.frame(UniqueID = rep(c("slow", "fast"), each = 60), flag = 1,
+                  POSIX.time = t0 + 10 * (0:119),
+                  CH4dry_ppb = 2000 + c(0 * (1:60), 10 * (1:60)) + rnorm(120, 0, 1))
+empirical.prec(two, "CH4dry_ppb")$prec
+empirical.prec(two, "CH4dry_ppb", method = "mad_diff1")$prec
+}
+\references{
+Riley, W. J. (2008). Handbook of Frequency Stability Analysis. NIST Special
+Publication 1065. National Institute of Standards and Technology.
+\doi{10.6028/NIST.SP.1065}
 }
 \seealso{
 \code{\link[goFlux]{MDF}}, \code{\link[goFlux]{goFlux}},
