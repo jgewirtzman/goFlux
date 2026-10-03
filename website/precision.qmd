@@ -11,26 +11,53 @@ $$MDF = \frac{prec}{t} \times \frac{V \cdot P}{R \cdot T \cdot A}$$
 
 By default `prec` is the manufacturer's specification, given at import (e.g. `prec = c(3.5, 0.6, 45)` for the LI-7810). Field-worn analyzers are noisier than their datasheet, so an MDF built on the datasheet value is optimistic. Two things help: estimate the precision from the data, and say at which confidence level a flux counts as detected.
 
-## Estimate the precision from the record
+## Estimate the precision from the closures
 
-`empirical.prec()` estimates the precision (1 σ) from the first differences of the concentration series. Differencing removes any smooth trend, so the flux signal cancels and only the instrument noise remains ($Var(x_{i+1} - x_i) = 2\sigma^2$).
+`empirical.prec()` estimates the precision (1 σ) closure by closure from the **second differences** of the concentration inside the fitted window (rows with `flag == 1`):
+
+$$\sigma_i = \frac{MAD(x_{k+1} - 2x_k + x_{k-1})}{\sqrt{6}}$$
+
+A straight line, i.e. the flux, cancels exactly in a second difference, while white noise of standard deviation σ gives $Var = 6\sigma^2$. This is the one-sample Hadamard deviation, the drift-insensitive counterpart of the Allan deviation (Riley 2008, NIST SP 1065). MAD is the normal-consistent median absolute deviation (`stats::mad`, constant 1.4826). The precision of a group of closures (an analyzer on a field day, say) is the **median** of $\sigma_i$ over its closures, so a few large, curved or bubbly closures cannot set it.
 
 ```{r}
 #| eval: false
 library(goFlux)
 data(manID.UGGA)
 
-# one robust value for the whole record: MAD(dx) x 1.4826 / sqrt(2)
+# median over the closures of the per-closure second-difference precision
 empirical.prec(manID.UGGA, "CH4dry_ppb")
 
-# one value per field day, campaign, ... (any column of the data frame)
+# one value per field day, campaign, analyzer ... (any column of the data frame)
 empirical.prec(manID.UGGA, "CH4dry_ppb", by = "DATE")
+
+# the per-closure values
+attr(empirical.prec(manID.UGGA, "CH4dry_ppb"), "closures")
 
 # one value per measurement, Allan deviation SD(dx)/sqrt(2) on the flagged window
 empirical.prec(manID.UGGA, "CH4dry_ppb", method = "allan")
 ```
 
-`method = "mad"` (the default) is robust to the isolated large differences produced by chamber changes, breaths and moves, so the entire field record can be used without selecting quiet periods. `method = "allan"` is the classical per-measurement estimate; it is a good diagnostic of a disturbed measurement (see [Quality flags](qualityflags.qmd)) but a poor basis for the MDF, because it varies from one measurement to the next.
+Second differences never span a gap or a change of logging interval; if the closures of a group were logged at different intervals, one row per interval (`dt_s`) is returned with a warning.
+
+### The checks reported with σ
+
+| column | expected | warns when | meaning |
+|---|---|---|---|
+| `ac1` | −2/3 | > −0.5 | lag-1 autocorrelation of the second differences: red or drift-dominated noise, which σ understates over a closure |
+| `zero.frac` | ~0 | ≥ 0.3 | fraction of exactly-zero first differences: the analyzer logs one gas per row (e.g. Picarro G4301) or the record is quantized; keep each gas's fresh rows first |
+| `d1c.ratio` | ~1 | outside 0.8–1.2 | σ from first differences centred on each closure's own median, over σ: trend or curvature leaking into first differences |
+
+### Why not the whole-record first-difference MAD
+
+Earlier versions of this function took the MAD of the *first* differences of the whole record. A first difference contains the closure's slope × Δt, and closures differ in slope, so the spread of slopes *between* closures is counted as noise (two noise-free closures rising 0 and 10 ppb per step give ~5 ppb). The effect is small at 1 Hz but reaches 1.4–2.3× at 5–10 s logging. That estimator is kept as `method = "mad_diff1"` for comparison with earlier results only.
+
+### What σ cannot see: drift
+
+Any difference-based precision is blind to instrument drift and to slow leaks: both change the concentration smoothly over a closure and so look like a flux, not like noise. Make periodic **blank closures** on an inert surface (a sealed chamber on a plate or foil); their apparent flux is the drift or leak floor. The trend of the ambient record around the closures can flag an unstable analyzer but cannot measure drift inside the chamber.
+
+### Compare with the datasheet at your logging interval
+
+Manufacturers quote precision at 1 s. A record logged every Δt seconds averages white noise down by $\sqrt{\Delta t}$, so compare the `prec` of a 5 s or 10 s record with `spec.at.interval(spec_1s, dt_s)` (the datasheet value ÷ $\sqrt{\Delta t}$), not with the 1 s figure; otherwise an analyzer can appear to beat its datasheet when it is several times worse.
 
 ## State the confidence level
 
@@ -58,7 +85,7 @@ Nothing above is needed to get the same MDF with an older goFlux: supply $1.96 \
 
 ## Reporting
 
-State the three ingredients: the precision estimator (datasheet, record-wide MAD or per-measurement Allan deviation), the confidence level, and the measurement time, e.g. "MDF at 95 % (two-sided), record-wide MAD precision of 2.2 ppb, 300 s closure". The flux table carries `prec`, `MDF` and, when `best.flux(conf = )` was used, `MDF.conf`.
+State the three ingredients: the precision estimator (datasheet, closure-median second-difference σ or per-measurement Allan deviation), the confidence level, and the measurement time in seconds, e.g. "MDF at 95 % (two-sided), second-difference precision of 2.2 ppb (median of 14 closures, 1 s logging), 300 s closure". The flux table carries `prec`, `MDF` and, when `best.flux(conf = )` was used, `MDF.conf`.
 
 ::: {.callout-note}
 The p-value of the linear slope (`LM.p.val`) is not a detection criterion: on 1 Hz records the residuals are autocorrelated and the ordinary least-squares test is anticonservative. Use it as a coarse validity filter and the MDF with an empirical precision and a stated `conf` for detection.

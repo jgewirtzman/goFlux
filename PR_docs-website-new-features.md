@@ -15,3 +15,16 @@ Usage/argument sections of existing pages come from `scripts/autodoc.R` at rende
 new pages use plain `eval: false` code chunks on `manID.UGGA` and do not call `autodoc()`, so
 they render before the feature branches are merged. There is no changelog page on the site;
 the `dates =` and `crop.meas` notes went to the import and other-functions pages.
+
+## Revision: second-difference precision and ambient-at-sealing
+
+- `website/precision.qmd`: `empirical.prec()` now described as the per-closure
+  second-difference (one-sample Hadamard) sigma, group = median over closures
+  (Riley 2008); table of the three checks (`ac1`, `zero.frac`, `d1c.ratio`);
+  why the whole-record first-difference MAD (`method = "mad_diff1"`) is
+  superseded; drift/blank-closure paragraph; datasheet / sqrt(dt)
+  (`spec.at.interval()`); reporting example updated.
+- `website/qualityflags.qmd`: `qc.ambient` judged at sealing (10 s after the
+  recorded start vs 60 s before, 3 x max(group sigma, pre-closure MAD)),
+  new `qc.clock`, `qc.noisy` on the second-difference sigma, drift paragraph.
+- Both pages re-rendered locally with `quarto render` (eval: false chunks).
