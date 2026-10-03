@@ -272,7 +272,7 @@ empirical.prec <- function(dataframe, gastype, method = c("hadamard", "allan", "
     # Superseded: MAD of first differences per run of constant logging
     # interval over the whole record. Returns one row per interval: prec, n
     # (differences used) and dt_s. Without timestamps: one pooled MAD.
-    f <- function(v, tm){
+    f.mad <- function(v, tm){
       if(is.null(tm)){
         v <- v[!is.na(v)]; d <- diff(v)
         if(length(d) < 2) return(data.frame(prec = NA_real_, n = length(d), dt_s = NA_real_))
@@ -305,7 +305,7 @@ empirical.prec <- function(dataframe, gastype, method = c("hadamard", "allan", "
       out
     }
     if(is.null(by)){
-      out <- f(x, p)
+      out <- f.mad(x, p)
       if(nrow(out) > 1 && warn){
         warning("record has ", nrow(out), " logging intervals (",
                 paste(out$dt_s, collapse = ", "), " s); precision is reported ",
@@ -315,7 +315,7 @@ empirical.prec <- function(dataframe, gastype, method = c("hadamard", "allan", "
       idx.g <- split(seq_along(x), g)
       r <- lapply(names(idx.g), function(k){
         i <- idx.g[[k]]
-        o <- f(x[i], if(is.null(p)) NULL else p[i])
+        o <- f.mad(x[i], if(is.null(p)) NULL else p[i])
         if(nrow(o) > 1 && warn){
           warning("group '", k, "' has ", nrow(o), " logging intervals (",
                   paste(o$dt_s, collapse = ", "), " s); precision is reported ",
@@ -332,10 +332,10 @@ empirical.prec <- function(dataframe, gastype, method = c("hadamard", "allan", "
     if(!any(grepl("\\<flag\\>", names(dataframe)))){
       stop("'dataframe' must contain the column 'flag' for method = 'allan'")}
     d <- dataframe[!is.na(dataframe$flag) & dataframe$flag == 1, ]
-    f <- function(v){ v <- v[!is.na(v)]; dd <- diff(v)
+    f.allan <- function(v){ v <- v[!is.na(v)]; dd <- diff(v)
       if(length(dd) < 2) return(c(NA_real_, length(dd)))
       c(stats::sd(dd) / sqrt(2), length(dd)) }
-    r <- t(sapply(split(d[[gastype]], as.character(d$UniqueID)), f))
+    r <- t(sapply(split(d[[gastype]], as.character(d$UniqueID)), f.allan))
     out <- data.frame(UniqueID = rownames(r), prec = r[, 1], n = as.integer(r[, 2]),
                       row.names = NULL, stringsAsFactors = FALSE)
   }
