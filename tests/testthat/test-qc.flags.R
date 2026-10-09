@@ -118,3 +118,30 @@ test_that("qc.flags: seal.time defaults to cham.close when present", {
   q <- qc.flags(data.frame(UniqueID = "a"), dataframe = d, gastype = "CH4dry_ppb")
   expect_true(q$qc.ambient)           # judged at cham.close (90 s), where the 40 ppb excess appears
 })
+
+test_that("qc.flags: qc.convex tests a quadratic on the flagged rows; qc.min.secs uses seconds", {
+  # ported from fluxqc 0.2.4 test-qc.R (convex screen with traces)
+  t0 <- as.POSIXct("2024-06-01 10:00:00", tz = "UTC")
+  set.seed(3)
+  mk <- function(uid, y, dt = 1) data.frame(UniqueID = uid, POSIX.time = t0 + dt * ((-60):299),
+                                            CH4dry_ppb = y, flag = c(rep(0, 60), rep(1, 300)),
+                                            Etime = dt * ((-60):299))
+  lin  <- mk("lin",  c(rep(2000, 60), 2000 + 0.5 * (0:299)) + rnorm(360, 0, 1))
+  conv <- mk("conv", c(rep(2000, 60), 2000 + 0.002 * (0:299)^2) + rnorm(360, 0, 1))
+  sat  <- mk("sat",  c(rep(2000, 60), 2000 + 150 * (1 - exp(-(0:299) / 100))) + rnorm(360, 0, 1))
+  upt  <- mk("upt",  c(rep(2000, 60), 2000 - 0.002 * (0:299)^2) + rnorm(360, 0, 1))  # accelerating uptake
+  d <- rbind(lin, conv, sat, upt)
+  fx <- data.frame(UniqueID = c("lin", "conv", "sat", "upt"), HM.k = 0.01, nb.obs = 300)
+  q <- qc.flags(fx, dataframe = d, gastype = "CH4dry_ppb", ambient.sigma = NULL, noisy.mult = NULL)
+  expect_equal(q$qc.convex, c(FALSE, TRUE, FALSE, TRUE))
+  expect_true(all(q$qc.any[2:4] == c(TRUE, FALSE, TRUE)))
+  # without the concentration data: the HM.k fallback
+  expect_equal(qc.flags(fx)$qc.convex, rep(FALSE, 4))
+  # window length in seconds, whatever the logging interval
+  d5 <- mk("five", 2000 + 0.5 * (0:359), dt = 5)      # 300 rows logged every 5 s = 1500 s
+  q5 <- qc.flags(data.frame(UniqueID = c("lin", "five"), nb.obs = 300), dataframe = rbind(lin, d5),
+                 gastype = "CH4dry_ppb", min.obs = NULL, min.secs = 600,
+                 ambient.sigma = NULL, noisy.mult = NULL)
+  expect_equal(q5$qc.min.secs, c(TRUE, FALSE))
+  expect_error(qc.flags(fx, min.secs = 60), "dataframe")
+})

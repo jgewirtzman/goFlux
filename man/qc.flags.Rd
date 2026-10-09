@@ -11,6 +11,8 @@ qc.flags(
   c0.mult = 1.5,
   by = NULL,
   min.obs = 60,
+  min.secs = NULL,
+  convex.p = 0.05,
   ambient.sigma = 3,
   ambient.secs = 10,
   ambient.pre = 60,
@@ -46,6 +48,15 @@ Default \code{NULL}: all rows.}
 
 \item{min.obs}{numerical; \code{qc.min.obs} fires when \code{nb.obs} is below
 it. Default 60. \code{NULL} skips the flag.}
+
+\item{min.secs}{numerical; \code{qc.min.secs} fires when the closure
+duration (\code{\link[goFlux]{closure.time}} of the rows with
+\code{flag == 1} in \code{dataframe}) is below it, in
+seconds, whatever the logging interval. Default \code{NULL}
+(skipped); needs \code{dataframe}.}
+
+\item{convex.p}{numerical; significance level of the curvature test of
+\code{qc.convex} (see Details). Default 0.05.}
 
 \item{ambient.sigma}{numerical; \code{qc.ambient} fires when the headspace
 at the moment of sealing differs from the pre-closure ambient
@@ -91,7 +102,7 @@ surface, which measures drift and leaks together. Default
 }
 \value{
 \code{flux.result} with the columns \code{qc.c0}, \code{qc.convex},
-         \code{qc.min.obs}, \code{qc.ambient}, \code{qc.clock},
+         \code{qc.min.obs}, \code{qc.min.secs}, \code{qc.ambient}, \code{qc.clock},
          \code{qc.noisy}, \code{qc.leak} (those requested) and \code{qc.any}
          appended, plus
          the helper values \code{qc.c0.ratio}, \code{qc.ambient.dev} and
@@ -152,12 +163,15 @@ detectable flux of the row (\code{det.MDF} from
 flux cannot be separated from leakage or drift. Skipped when both are
 \code{NULL}.
 
-\code{qc.convex} fires when the Hutchinson-Mosier curvature is convex
-(\code{HM.k < 0}, accelerating concentration change, which no chamber
-mechanism produces and which points at a leak, a disturbance or a delayed
-seal); it can only be \code{TRUE} when \code{\link[goFlux]{goFlux}} was run
-with \code{k.min < 0}, otherwise it is \code{FALSE} for a fitted HM and
-\code{NA} when \code{HM.k} is missing.
+\strong{Convex trace (\code{qc.convex}).} An accelerating concentration
+change, which no chamber mechanism produces, points at a leak, a disturbance
+or a delayed seal. With \code{dataframe}, a quadratic is fitted to the rows
+with \code{flag == 1} of each closure (concentration on \code{Etime}); the
+flag fires when the quadratic term has the sign of the overall linear slope
+and its p-value is below \code{convex.p} (at least 6 rows; \code{NA}
+otherwise). Without \code{dataframe} it falls back to the
+Hutchinson-Mosier curvature, \code{HM.k < 0}, which can only occur when
+\code{\link[goFlux]{goFlux}} was run with \code{k.min < 0}.
 
 The CO2 tracer test (CO2 must accumulate in a sealed chamber on a respiring
 surface) is not a flag here because it is a plain comparison between two
