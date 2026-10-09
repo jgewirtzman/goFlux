@@ -75,6 +75,7 @@ Collate:
     'manID.G2201i-data.R'
     'manID.UGGA-data.R'
     'obs.win.R'
+    'qc.flags.R'
     'spec.at.interval.R'
 Suggests:
     testthat (>= 3.0.0)
