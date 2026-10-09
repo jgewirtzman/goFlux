@@ -216,7 +216,7 @@ autoID <- function(inputfile, auxfile = NULL, obs.length = NULL,
 
   # Assign NULL to variables without binding ####
   POSIX.time <- chamID <- DATE <- start.time <- UniqueID <- cham.close <-
-    cham.open <- end.time <- . <- flag <- error <- NULL
+    cham.open <- end.time <- . <- flag <- error <- Etime <- time_min <- time_max <- NULL
 
   # FUNCTION STARTS ####
 

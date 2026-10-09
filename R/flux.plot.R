@@ -599,14 +599,14 @@ flux.plot <- function(flux.results, dataframe, gastype, shoulder = 30,
 
   # Define flux units
   if(!is.null(flux.unit)) flux.unit <- flux.unit else {
-    if(gastype == "CO2dry_ppm") flux.unit <- "\u00B5mol~m^-2*s^-1"
+    if(gastype == "CO2dry_ppm") flux.unit <- "mu*mol~m^-2*s^-1"
     if(gastype == "CH4dry_ppb") flux.unit <- "nmol~m^-2*s^-1"
     if(gastype == "N2Odry_ppb") flux.unit <- "nmol~m^-2*s^-1"
     if(gastype == "NO2dry_ppb") flux.unit <- "nmol~m^-2*s^-1"
     if(gastype == "NOdry_ppb") flux.unit <- "nmol~m^-2*s^-1"
     if(gastype == "COdry_ppb") flux.unit <- "nmol~m^-2*s^-1"
     if(gastype == "NH3dry_ppb") flux.unit <- "nmol~m^-2*s^-1"
-    if(gastype == "H2O_ppm") flux.unit <- "\u00B5mol~m^-2*s^-1"
+    if(gastype == "H2O_ppm") flux.unit <- "mu*mol~m^-2*s^-1"
   }
 
   # Define flux.term units

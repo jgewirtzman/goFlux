@@ -596,7 +596,7 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
 
   # Silence R CMD check notes on columns referenced by non-standard evaluation.
   UniqueID <- Etime <- flag <- flag_lab <- HM_mod <- start <- end <- NULL
-  x <- y <- event <- NULL
+  x <- y <- event <- xend <- yend <- NULL
 
   # ---- One figure per incubation --------------------------------------------
 

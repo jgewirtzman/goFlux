@@ -261,6 +261,9 @@ goAquaFlux <- function(dataframe,
                        return_df = TRUE) {
 
 
+  # Silence R CMD check notes on columns referenced by non-standard evaluation.
+  H2O_ppm <- NULL
+
   # ------------------- Check arguments -------------------
   diffusion.window <- match.arg(diffusion.window)
   if (isTRUE(use_bubble_detection) && !grepl("CH4", bubble_gas)) {

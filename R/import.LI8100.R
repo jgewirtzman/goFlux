@@ -112,7 +112,8 @@ import.LI8100 <- function(inputfile, date.format = "ymd", timezone = "UTC",
   Type <- Etime <- Tcham <- Pressure <- H2O <- . <- Cdry <- V1 <- V2 <- V3 <-
     V4 <- H2O_mmol <- DATE_TIME <- Obs <- cham.close <- cham.open <- plotID <-
     deadband <- start.time <- obs.start <- POSIX.time <- import.error <-
-    Date <- CO2dry_ppm <- POSIX.warning <- H2O_ppm <- Pcham <- Obs2 <- NULL
+    Date <- CO2dry_ppm <- POSIX.warning <- H2O_ppm <- Pcham <- Obs2 <- flag <-
+    Etime.original <- NULL
   
   # Input file name
   inputfile.name <- gsub(".*/", "", inputfile)

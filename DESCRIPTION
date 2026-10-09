@@ -86,6 +86,7 @@ Collate:
     'spec.at.interval.R'
     'windows.from.table.R'
 Suggests:
+    ggtext,
     testthat (>= 3.0.0)
 Imports: AICcmodavg, data.table, dplyr, ggnewscale, ggplot2, ggstar, graphics, grDevices, grid, gridExtra, jsonlite, lifecycle, lubridate, minpack.lm, msm, pbapply, plyr, purrr, rjson, rlang, rlist, SimDesign, stats, stringr, tibble, tidyr, toOrdinal, utils, zoo
 Config/roxygen2/version: 8.1.0
