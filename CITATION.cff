@@ -8,8 +8,11 @@ version: 0.5.0.9002
 date-released: 2026-10-09
 license: GPL-2.0-only
 repository-code: "https://github.com/jgewirtzman/goFlux"
-doi: 10.5281/zenodo.23254790
+doi: 10.5281/zenodo.23256675
 identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23256675
+    description: "This version (0.5.0.9002)"
   - type: doi
     value: 10.5281/zenodo.23254790
     description: "All versions (resolves to the latest)"

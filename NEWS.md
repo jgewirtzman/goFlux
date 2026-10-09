@@ -1,5 +1,7 @@
 # goFlux 0.5.0.9002 (fork additions, jgewirtzman/goFlux)
 
+GitHub release v0.5.0.9002, Zenodo doi:10.5281/zenodo.23256675.
+
 * `qc.flags()`: `qc.convex` could not fire in 0.5.0.9001. It tested only the
   Hutchinson-Mosier curvature (`HM.k < 0`), which `goFlux()` keeps at 0 or
   above unless `k.min < 0`. With `dataframe`, it now fits a quadratic to the
