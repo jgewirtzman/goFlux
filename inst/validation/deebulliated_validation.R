@@ -14,8 +14,7 @@
 
 args <- commandArgs(trailingOnly = TRUE)
 N_SYNTH <- if (length(args) >= 1) as.integer(args[1]) else 2400L
-BLUEFLUX <- if (length(args) >= 2) args[2] else
-  "~/My Drive/Research/Blueflux/blueflux-ground"
+BLUEFLUX <- if (length(args) >= 2) args[2] else Sys.getenv("BLUEFLUX_DIR")
 OUT <- "inst/validation"
 N_CORES <- max(1L, min(6L, parallel::detectCores() - 1L))
 

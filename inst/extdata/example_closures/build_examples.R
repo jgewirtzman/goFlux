@@ -1,25 +1,28 @@
 # =============================================================================
-# build_examples.R -- how the bundled example closures were pulled and anonymized
+# build_examples.R -- how the bundled example closures were extracted and relabelled
 #
 # NOT run at install time. Closure 11 (ebullition_overshoot) was added on
 # 2026-10-08 by building it alone (ONLY below) and appending it; some YMF
 # sources of closures 1-10 have since moved.
-# Documents, reproducibly from the author's drive, how
+# Documents, reproducibly from the source project folders, how
 # inst/extdata/example_closures/example_closures.csv, example_closures_aux.csv and
 # example_closures_diagnostics.csv were made. Each closure is the campaign's
 # own goFlux manID output: the full obs.win() segment (context rows flag = 0,
 # operator-clicked fitting window flag = 1) with the geometry from the same
-# rows. Anonymization: UniqueIDs become descriptive keys; tree tags, plot codes,
-# species, operators, file names and dates are dropped; the time axis is moved
-# to a synthetic calendar (2000-01-01 + one day per closure) preserving every
-# interval; analyzer model, chamber family, geometry (Area, Vtot, Tcham, Pcham),
+# rows. Relabelling: in the bundled files, UniqueIDs become descriptive keys;
+# tree tags, plot codes, species, operators, file names and dates are dropped;
+# the time axis is moved to a synthetic calendar (2000-01-01 + one day per
+# closure) preserving every interval. The source IDs are listed below (sel) for
+# provenance; analyzer model, chamber family, geometry (Area, Vtot, Tcham, Pcham),
 # season and year (documentation only) are kept.
 #
-# Sources (author's drive, as of 2026-09):
-#   YMF  = ~/My Drive/Research/YMF Tree Microbiomes & Methane/tree-methanogens
-#   BF   = ~/My Drive/Research/Blueflux/blueflux-ground
-#   SF   = ~/My Drive/Research/santafe-fluxes-2026
-#   GP   = ~/Downloads/Guidelines Paper/figure-build/fig03_traces/out
+# Sources (project folders as of 2026-09), under the folder given by the
+# environment variable GOFLUX_EXAMPLE_SOURCES:
+#   YMF  = YMF Tree Microbiomes & Methane/tree-methanogens
+#   BF   = Blueflux/blueflux-ground
+#   SF   = santafe-fluxes-2026
+# and GP = the guidelines-paper figure build (figure-build/fig03_traces/out),
+# given by GOFLUX_GUIDELINES_FIGURES. Run from the package root.
 #
 # Continuity rule applied to every clicked window (columns max_gap_s,
 # max_dCH4_over_MAD, max_dCO2_over_MAD in the diagnostics): no timestamp gap
@@ -30,11 +33,13 @@
 # SF19_DBH_r1 (6.1 x MAD step) and Mar_22_T1_52_FLM30_stem (45 x MAD, 4 s gap).
 # =============================================================================
 suppressMessages(library(data.table))
-YMF <- path.expand("~/My Drive/Research/YMF Tree Microbiomes & Methane/tree-methanogens")
-BF  <- path.expand("~/My Drive/Research/Blueflux/blueflux-ground")
-SF  <- path.expand("~/My Drive/Research/santafe-fluxes-2026")
-GP  <- path.expand("~/Downloads/Guidelines Paper/figure-build/fig03_traces/out")
-OUT <- path.expand("~/My Drive/Research/goFlux-fork/inst/extdata/example_closures")
+SRC <- Sys.getenv("GOFLUX_EXAMPLE_SOURCES")
+if (!nzchar(SRC)) stop("set GOFLUX_EXAMPLE_SOURCES to the folder holding the source projects")
+YMF <- file.path(path.expand(SRC), "YMF Tree Microbiomes & Methane/tree-methanogens")
+BF  <- file.path(path.expand(SRC), "Blueflux/blueflux-ground")
+SF  <- file.path(path.expand(SRC), "santafe-fluxes-2026")
+GP  <- path.expand(Sys.getenv("GOFLUX_GUIDELINES_FIGURES"))
+OUT <- if (exists("OUT")) OUT else "inst/extdata/example_closures"
 
 # ---- selection ---------------------------------------------------------------
 # key, source, original UniqueID, campaign type, season/year, analyzer, chamber family, MDF/class source

@@ -36,7 +36,7 @@ Additions to goFlux 0.5.0 (Qepanna/goFlux master, 3ab9c04). Cite as
   5 s found no rise at 10 s logging); its thresholds default to CO2 in ppm.
 * `process.fluxes()`, `write.outputs()`: goFlux -> best.flux -> flux.class ->
   qc.flags in one call, with every option recorded.
-* `example.closures()`: eleven real, anonymized closures with their geometry
+* `example.closures()`: eleven real, relabelled closures with their geometry
   (`inst/extdata/example_closures/`), including two floating-chamber bubbles,
   one with a transient overshoot; `goAquaFlux()`, `find.bubbles()` and
   `flux.plot.aqua()` have runnable examples on them.

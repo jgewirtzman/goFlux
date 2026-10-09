@@ -34,7 +34,7 @@ A list with \code{data} (one data.frame, all closures bound
          anonymous campaign key usable as \code{by}).
 }
 \description{
-Eleven real, anonymized chamber closures from two analyzer families (ABB/LGR
+Eleven real, relabelled chamber closures from two analyzer families (ABB/LGR
 UGGA/GLA131 and LI-COR LI-7810), returned in the format of
 \code{\link[goFlux]{click.peak2}} output with an auxfile carrying the real
 geometry of each closure. Each closure is the campaign's own observation
@@ -77,11 +77,13 @@ Keys (campaign type, analyzer and logging interval):
     default).}
 }
 
-\strong{Anonymization.} \code{UniqueID}s are descriptive keys; tree tags,
+\strong{Relabelling.} \code{UniqueID}s are descriptive keys; tree tags,
 plot codes, species, operators, file names and dates are removed; the time
 axis is a synthetic calendar (2000-01-01 + one day per closure) that keeps
 every sampling interval; analyzer, chamber family, geometry (\code{Area},
 \code{Vtot}, \code{Tcham}, \code{Pcham}), season and year are kept. The
+source IDs of the closures are listed in \code{build_examples.R} for
+provenance. The
 extraction script (\code{build_examples.R}) and per-closure checks
 (\code{example_closures_diagnostics.csv}: timestamp gaps and the largest
 single-sample step) are in

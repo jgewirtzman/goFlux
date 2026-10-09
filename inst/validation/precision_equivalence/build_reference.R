@@ -4,16 +4,19 @@
 #
 # NOT run at install time or by the tests. Computes the per-closure
 # second-difference precision of the bundled closures with the two
-# implementations that empirical.prec() replaces, read from the author's drive
-# without loading either as a package:
+# implementations that empirical.prec() replaces, read from their source folders
+# (environment variables FLUXQC_DIR and WHOLE_TREE_FLUX_DIR) without loading
+# either as a package:
 #   fluxqc 0.2.4 (commit ecc7710)  R/precision.R    precision_hadamard()
 #   whole_tree_flux                precision_helpers.R  closure_noise()
 # and writes reference.csv next to this file. Run from the root of the fork:
 #   Rscript inst/validation/precision_equivalence/build_reference.R
 # =============================================================================
 
-FLUXQC <- path.expand("~/My Drive/Research/fluxqc/R/precision.R")
-WT     <- path.expand("~/My Drive/Research/whole_tree_flux/data processing/goFlux_reprocessing/precision_helpers.R")
+FLUXQC <- file.path(path.expand(Sys.getenv("FLUXQC_DIR")), "R/precision.R")
+WT     <- file.path(path.expand(Sys.getenv("WHOLE_TREE_FLUX_DIR")),
+                    "data processing/goFlux_reprocessing/precision_helpers.R")
+if (!file.exists(FLUXQC) || !file.exists(WT)) stop("set FLUXQC_DIR and WHOLE_TREE_FLUX_DIR")
 OUT    <- "inst/validation/precision_equivalence/reference.csv"
 
 fq <- new.env(); sys.source(FLUXQC, envir = fq)
