@@ -39,6 +39,17 @@
 #'          package has been adapted. Please write to the maintainer of this package 
 #'          for adaptation of additional gases.
 #'
+#'          \strong{Timestamps are rounded to whole seconds.} \code{POSIX.time}
+#'          (and \code{start.time}) are rounded to the nearest second, and the
+#'          observations are matched to a one-second grid of window times. For an
+#'          analyzer whose clock does not tick on whole seconds (e.g. a logging
+#'          interval of about 0.995 s), two consecutive readings occasionally
+#'          round to the same second: both are kept, with a duplicated time, and
+#'          the sub-second information is lost. Fluxes are hardly affected, but
+#'          difference-based statistics are (\code{\link[goFlux]{empirical.prec}}
+#'          treats a duplicated time as a break between runs). Where this
+#'          matters, compute such statistics on the original timestamps.
+#'
 #' @examples
 #' # How to use in multiple situations:
 #' library(dplyr)

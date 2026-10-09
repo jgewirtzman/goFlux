@@ -134,6 +134,12 @@ present order and \code{dt_s} is \code{NA}. For \code{"mad_diff1"} the same
 run logic applies to the whole record (runs shorter than 3 differences,
 and intervals seen fewer than 3 times, are dropped).
 
+Timestamps rounded to whole seconds by \code{\link[goFlux]{obs.win}} can
+contain duplicated times for analyzers that log slightly faster than 1 Hz
+(e.g. every 0.995 s); each duplicate breaks a run and shifts the closure's
+precision slightly (a few percent). Where the original sub-second times are
+available, estimate the precision on them.
+
 \strong{Checks} (returned as columns; \code{warn = TRUE} also warns):
 \describe{
   \item{\code{ac1}}{lag-1 autocorrelation of the second differences
