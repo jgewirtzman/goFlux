@@ -101,13 +101,12 @@ otherwise its \eqn{\sigma_i} is \code{NA}. The precision of a group
 a minority of very large, curved or bubbly closures cannot set the group
 value.
 
-\strong{Why not the alternatives.} On simulated field days and real
-records of several analyzers, whole-record first differences inflated the
-precision 1.2-2.3x (high or variable fluxes, low-noise analyzers, 10 s
-logging); whole-record second differences 1.3-1.4x at 10 s; first
-differences centred per closure 1.3x with curvature at 10 s; residuals of a
-quadratic fit 2x with ebullition; the minimum over rolling windows is
-biased low. \code{"allan"} and \code{"mad_diff1"} are kept as documented
+\strong{Why not the alternatives.} Whole-record first differences count the
+differences in slope between closures as noise (worse with high or variable
+fluxes, low-noise analyzers and coarse logging); whole-record second
+differences include changes of slope between closures; first differences
+centred per closure absorb curvature; residuals of a fitted curve absorb
+bubbles and misfit; the minimum over rolling windows is biased low. \code{"allan"} and \code{"mad_diff1"} are kept as documented
 comparison methods only.
 
 \strong{The whole-record first-difference MAD.} The superseded
@@ -116,9 +115,8 @@ and centres them on a single median. A first difference contains the
 closure's slope x \eqn{\Delta t}, and closures differ in slope, so the
 spread of slopes between closures is counted as instrument noise. Two
 noise-free closures rising 0 and 10 ppb per step give a "precision" of
-about 7 ppb. The inflation is small at 1 Hz but reaches 1.4-2.3x at 5-10 s
-logging, where the slope part of a difference is 5-10 times larger
-(\url{https://github.com/jgewirtzman/fluxqc/issues/1}). It is kept for
+about 5 ppb. The inflation is small at 1 Hz and grows at coarser logging,
+where the slope part of a difference is 5-10 times larger. It is kept for
 comparison with earlier results only.
 
 \strong{Logging interval.} A second difference must not span a change of
@@ -139,8 +137,7 @@ and intervals seen fewer than 3 times, are dropped).
 \strong{Checks} (returned as columns; \code{warn = TRUE} also warns):
 \describe{
   \item{\code{ac1}}{lag-1 autocorrelation of the second differences
-    (median over closures). For white noise it is -2/3; real LGR and
-    LI-7810 records give -0.64 to -0.71. Above -0.5 the noise
+    (median over closures). For white noise it is -2/3. Above -0.5 the noise
     is red (random-walk or drift-dominated): neighbouring samples are not
     independent, the second differences understate the noise that matters
     over a closure, and an Allan plot is needed.}

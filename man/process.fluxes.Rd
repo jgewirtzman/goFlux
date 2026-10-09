@@ -10,7 +10,7 @@ process.fluxes(
   auxfile = NULL,
   by = NULL,
   prec = NULL,
-  conf = 0.95,
+  conf = NULL,
   qc = list(),
   co2.flux.result = NULL,
   best.flux.args = list(),
@@ -38,9 +38,9 @@ median (\code{\link[goFlux]{qc.flags}}).}
 
 \item{prec, conf}{passed to \code{\link[goFlux]{flux.class}}: \code{prec =
 NULL} (default) uses the group second-difference precision of
-\code{\link[goFlux]{empirical.prec}}; \code{conf = 0.95} gives
-z = 1.96 (a benchmark multiplier, see
-\code{\link[goFlux]{MDF}}).}
+\code{\link[goFlux]{empirical.prec}}; \code{conf = NULL}
+(default) gives z = 1, \code{conf = 0.95} z = 1.96 (a benchmark
+multiplier, see \code{\link[goFlux]{MDF}}).}
 
 \item{qc}{named list of arguments to \code{\link[goFlux]{qc.flags}} (e.g.
 \code{list(min.obs = 120, leak.rate = 1e-4)}), or \code{FALSE}

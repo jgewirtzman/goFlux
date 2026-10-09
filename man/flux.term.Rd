@@ -41,17 +41,16 @@ a slope in ppb/s gives
 
 \strong{Total volume.} \code{V_L} is the whole closed loop: chamber (or
 collar plus chamber), tubing and the analyzer's internal volume. Record
-each component separately so that it can be checked. An x \% error in the
-volume or the area is an x \% error in the flux and in the
-\code{\link[goFlux]{MDF}} (Cowan et al. 2025). For the analyzer, use the
-manufacturer's total sample volume: e.g. 28
-\ifelse{html}{\out{cm<sup>3</sup>}}{\eqn{cm^3}{ASCII}} for the LI-COR
-LI-7810 (a value also used for the ABB/LGR GLA131 microportable analyzers,
-whose datasheet gives about 25
-\ifelse{html}{\out{cm<sup>3</sup>}}{\eqn{cm^3}{ASCII}}). The 70
-\ifelse{html}{\out{cm<sup>3</sup>}}{\eqn{cm^3}{ASCII}} in the
-instrument table of the goFlux website (\code{example_auxfile.xlsx}) is
-for the larger UGGA, not for the microportable GLA131 ("MGGA").
+each component separately so that it can be checked, and take the
+analyzer's internal volume from its manufacturer for the exact model. An
+x \% error in the volume or the area is an x \% error in the flux and in
+the \code{\link[goFlux]{MDF}} (Cowan et al. 2025).
+
+The internal volume of the ABB/LGR microportable analyzers (GLA131 series,
+"MGGA") is not confirmed: the instrument table of the goFlux website
+(\code{example_auxfile.xlsx}) gives a value for the larger ultraportable
+UGGA (GLA132 series), which should not be used for the GLA131. Ask the
+manufacturer for the internal volume of your model.
 }
 \examples{
 # 1 L chamber on a 100 cm2 footprint, 20 C, 101.3 kPa

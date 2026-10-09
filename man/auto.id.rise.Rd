@@ -62,7 +62,9 @@ Default \code{"UTC"}.}
 \item{warn.length}{numerical; windows with fewer observations give a
 warning. Default 60.}
 
-\item{...}{further arguments to \code{\link[goFlux]{find.rise}}.}
+\item{...}{further arguments to \code{\link[goFlux]{find.rise}}; set
+\code{rise}, \code{drop} and \code{conc.range} when
+\code{gastype} is not CO2 in ppm.}
 }
 \value{
 A data.frame in the format of \code{\link[goFlux]{click.peak2}}

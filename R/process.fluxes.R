@@ -25,9 +25,9 @@
 #'           median (\code{\link[goFlux]{qc.flags}}).
 #' @param prec,conf passed to \code{\link[goFlux]{flux.class}}: \code{prec =
 #'             NULL} (default) uses the group second-difference precision of
-#'             \code{\link[goFlux]{empirical.prec}}; \code{conf = 0.95} gives
-#'             z = 1.96 (a benchmark multiplier, see
-#'             \code{\link[goFlux]{MDF}}).
+#'             \code{\link[goFlux]{empirical.prec}}; \code{conf = NULL}
+#'             (default) gives z = 1, \code{conf = 0.95} z = 1.96 (a benchmark
+#'             multiplier, see \code{\link[goFlux]{MDF}}).
 #' @param qc named list of arguments to \code{\link[goFlux]{qc.flags}} (e.g.
 #'           \code{list(min.obs = 120, leak.rate = 1e-4)}), or \code{FALSE}
 #'           to skip the flags. Default \code{list()}: the defaults of
@@ -66,7 +66,7 @@
 #' str(res$settings, max.level = 1)
 #' @export
 process.fluxes <- function(dataframe, gastype, auxfile = NULL, by = NULL,
-                           prec = NULL, conf = 0.95, qc = list(),
+                           prec = NULL, conf = NULL, qc = list(),
                            co2.flux.result = NULL, best.flux.args = list(), ...) {
 
   # Check arguments
@@ -98,7 +98,7 @@ process.fluxes <- function(dataframe, gastype, auxfile = NULL, by = NULL,
     gastype = gastype, by = by,
     prec = if(is.null(prec)) "empirical.prec(method = 'hadamard') per group" else
       if(is.data.frame(prec)) "supplied per UniqueID" else prec,
-    conf = conf,
+    conf = if(is.null(conf)) NA_real_ else conf, z = mdf.z(conf),
     det.prec.median = stats::median(best$det.prec, na.rm = TRUE),
     qc = if(isFALSE(qc)) NULL else qc,
     co2.tracer = !is.null(co2.flux.result),

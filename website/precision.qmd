@@ -43,7 +43,7 @@ Second differences never span a gap or a change of logging interval; if the clos
 
 | column | expected | warns when | meaning |
 |---|---|---|---|
-| `ac1` | −2/3 (real LGR and LI-7810 records: −0.64 to −0.71) | > −0.5 | lag-1 autocorrelation of the second differences: red or drift-dominated noise, which σ understates over a closure |
+| `ac1` | −2/3 | > −0.5 | lag-1 autocorrelation of the second differences: red or drift-dominated noise, which σ understates over a closure |
 | `zero.frac` | ~0 | ≥ 0.3 | fraction of exactly-zero first differences: the analyzer logs one gas per row (e.g. Picarro G4301) or the record is quantized; keep each gas's fresh rows first |
 | `d1c.ratio` | ~1 | outside 0.8–1.2 | σ from first differences centred on each closure's own median, over σ: trend or curvature leaking into first differences |
 
@@ -51,9 +51,9 @@ Passing the checks does not prove that the errors are independent at the time sc
 
 ### Why not the alternatives
 
-On simulated field days and real records of several analyzers, whole-record first differences inflated σ 1.2–2.3× (high or variable fluxes, low-noise analyzers, 10 s logging), whole-record second differences 1.3–1.4× at 10 s, first differences centred per closure 1.3× with curvature at 10 s, and residuals of a quadratic fit 2× with ebullition; the minimum over rolling windows is biased low. The Allan deviation (`method = "allan"`) and the whole-record first-difference MAD (`method = "mad_diff1"`) are kept as documented comparison methods only.
+Whole-record first differences count the differences in slope between closures as noise (worse with high or variable fluxes, low-noise analyzers and coarse logging); whole-record second differences include changes of slope between closures; first differences centred per closure absorb curvature; residuals of a fitted curve absorb bubbles and misfit; the minimum over rolling windows is biased low. The Allan deviation (`method = "allan"`) and the whole-record first-difference MAD (`method = "mad_diff1"`) are kept as documented comparison methods only.
 
-The whole-record first-difference MAD was used in earlier versions of this function. It took the MAD of the *first* differences of the whole record. A first difference contains the closure's slope × Δt, and closures differ in slope, so the spread of slopes *between* closures is counted as noise (two noise-free closures rising 0 and 10 ppb per step give ~5 ppb). The effect is small at 1 Hz but reaches 1.4–2.3× at 5–10 s logging. That estimator is kept as `method = "mad_diff1"` for comparison with earlier results only.
+The whole-record first-difference MAD was used in earlier versions of this function. It took the MAD of the *first* differences of the whole record. A first difference contains the closure's slope × Δt, and closures differ in slope, so the spread of slopes *between* closures is counted as noise (two noise-free closures rising 0 and 10 ppb per step give about 5 ppb). The effect is small at 1 Hz and grows at coarser logging. That estimator is kept as `method = "mad_diff1"` for comparison with earlier results only.
 
 ### What σ cannot see: drift
 

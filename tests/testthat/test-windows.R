@@ -64,3 +64,15 @@ test_that("auto.id.rise() returns the click.peak2 structure and a log", {
   expect_lte(unique(m$obs.length_corr[m$UniqueID == "A"]), 600)
   expect_equal(min(m$Etime[m$flag == 1 & m$UniqueID == "A"]), 0)
 })
+
+test_that("find.rise() follows the logging interval (10 s) and auto.id.rise() warns on non-CO2 defaults", {
+  set.seed(2)
+  tt <- t0 + 10 * (0:119)
+  co2 <- c(rep(410, 20), 410 + 3 * (0:59), rep(590, 40)) + rnorm(120, 0, 0.3)
+  r <- find.rise(tt, co2, min.n = 60)
+  expect_false(is.null(r))
+  expect_gt(r$dur, 400)
+  expect_null(find.rise(tt, co2, min.n = 60, gap.secs = 5))   # the earlier fixed 5 s limit
+  ow <- list(make_window("A"))
+  expect_warning(auto.id.rise(ow, gastype = "CH4dry_ppb"), "CO2 in ppm")
+})

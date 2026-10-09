@@ -17,7 +17,10 @@
 #'                  to the end of its record.
 #' @param prec numerical vector of length 3; instrument precision of CO2 (ppm),
 #'             CH4 (ppb) and H2O (ppm), written to the \code{*_prec} columns.
-#'             Default \code{c(0.35, 0.9, 200)}.
+#'             Default \code{c(0.35, 0.9, 200)}, the datasheet values used for
+#'             the ABB/LGR GLA131 (MGGA) on the goFlux website; replace them for
+#'             the LI-7810 closure or with an empirical precision
+#'             (\code{\link[goFlux]{empirical.prec}}).
 #'
 #' @details
 #' Keys (campaign type, analyzer and logging interval):

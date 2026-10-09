@@ -31,7 +31,8 @@
 #'           \code{NULL}: all rows form one group.
 #' @param conf numerical; label of the multiplier applied to the precision,
 #'             \eqn{z = qnorm(1 - (1 - conf)/2)} (see \code{\link[goFlux]{MDF}}).
-#'             Default 0.95 (z = 1.96). \code{NULL} gives z = 1.
+#'             Default \code{NULL}: z = 1, as in \code{\link[goFlux]{MDF}};
+#'             \code{conf = 0.95} gives z = 1.96.
 #' @param t numerical; optional closure duration in seconds, a single number
 #'          or a vector aligned with the rows of \code{flux.result}. Default
 #'          \code{NULL}: from \code{dataframe} with
@@ -117,13 +118,14 @@
 #' data(manID.UGGA)
 #' CH4_best <- best.flux(goFlux(manID.UGGA, "CH4dry_ppb"))
 #' # empirical (second-difference) precision of the closures, z = 1.96
-#' CH4_det <- flux.class(CH4_best, dataframe = manID.UGGA, gastype = "CH4dry_ppb")
+#' CH4_det <- flux.class(CH4_best, dataframe = manID.UGGA, gastype = "CH4dry_ppb",
+#'                       conf = 0.95)
 #' CH4_det[, c("UniqueID", "best.flux", "det.prec", "det.t", "det.MDF", "det.class")]
 #' # a precision computed elsewhere
 #' flux.class(CH4_best, dataframe = manID.UGGA, gastype = "CH4dry_ppb", prec = 1.2)$det.MDF
 #' @export
 flux.class <- function(flux.result, dataframe = NULL, gastype = NULL, prec = NULL,
-                       by = NULL, conf = 0.95, t = NULL, flux.col = "best.flux") {
+                       by = NULL, conf = NULL, t = NULL, flux.col = "best.flux") {
 
   # Check arguments
   if(missing(flux.result)) stop("'flux.result' is required")

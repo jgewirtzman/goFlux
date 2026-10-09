@@ -12,7 +12,7 @@ test_that("process.fluxes(): appends only, best.flux columns untouched", {
   expect_true(all(grepl("^det\\.|^qc\\.", added)))
   expect_true(all(c("det.MDF", "det.class", "qc.c0", "qc.convex", "qc.any") %in% names(fx)))
   expect_equal(fx$det.class, "emission")
-  expect_equal(res$settings$conf, 0.95)
+  expect_true(is.na(res$settings$conf)); expect_equal(res$settings$z, 1)
   r2 <- suppressWarnings(process.fluxes(d, "CH4dry_ppb", qc = FALSE, prec = 7))
   expect_false("qc.any" %in% names(r2$fluxes))
   expect_equal(r2$fluxes$det.prec, 7)
@@ -42,7 +42,7 @@ test_that("the teaching closures separate (guidelines Figure 4 logic)", {
   ex <- example.closures(c("emission_stem_semirigid", "below_detection_stem", "failed_closure_stem",
                            "ambiguous_stem", "uptake_stem", "uptake_soil", "emission_upland_stem"))
   co2 <- suppressWarnings(best.flux(suppressWarnings(goFlux(ex$data, "CO2dry_ppm"))))
-  res <- suppressWarnings(process.fluxes(ex$data, "CH4dry_ppb", co2.flux.result = co2))
+  res <- suppressWarnings(process.fluxes(ex$data, "CH4dry_ppb", co2.flux.result = co2, conf = 0.95))
   fx <- res$fluxes; rownames(fx) <- fx$UniqueID
   expect_equal(fx["emission_stem_semirigid", "det.class"], "emission")
   expect_equal(fx["emission_stem_semirigid", "best.flux"], 0.254, tolerance = 0.02)

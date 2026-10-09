@@ -4,23 +4,27 @@
 #' chamber was evidently closed: the concentration rises by more than
 #' \code{rise} over \code{rise.secs}, then keeps climbing (never dropping more
 #' than \code{drop} below its running maximum) with no gap longer than
-#' \code{gap.secs}. Used by \code{\link[goFlux]{auto.id.rise}}.
+#' \code{gap.secs}. Used by \code{\link[goFlux]{auto.id.rise}}. The defaults
+#' of \code{rise}, \code{drop} and \code{conc.range} are for CO2 in ppm;
+#' set them for any other gas or unit.
 #'
 #' @param time POSIXct (or numeric, seconds) time stamps.
 #' @param conc numerical; concentrations (ppm for CO2).
 #' @param rise numerical; minimum increase over \code{rise.secs} that starts a
-#'             candidate rise. Default 6.
+#'             candidate rise, units of \code{conc}. Default 6 (ppm CO2).
 #' @param rise.secs numerical; look-ahead interval (s) for the start test.
 #'                  Default 60.
 #' @param drop numerical; tolerated drop below the running maximum before the
-#'             rise ends. Default 8.
+#'             rise ends, units of \code{conc}. Default 8 (ppm CO2).
 #' @param min.dur numerical; minimum duration (s) of an accepted rise.
 #'                Default 90.
 #' @param gap.secs numerical; a gap between consecutive samples longer than
-#'                 this (s) ends the rise. Default 5; set it above the logging
-#'                 interval.
+#'                 this (s) ends the rise. Default \code{NULL}: three times the
+#'                 logging interval (median spacing of \code{time}), at least
+#'                 5 s.
 #' @param conc.range numerical vector of length 2; values outside this range
-#'                   are discarded before scanning. Default \code{c(300, 20000)}.
+#'                   are discarded before scanning (e.g. analyzer error
+#'                   values). Default \code{c(300, 20000)} (ppm CO2).
 #' @param min.n numerical; minimum number of valid samples needed to scan.
 #'              Default 120.
 #'
@@ -39,7 +43,7 @@
 #' find.rise(t0 + 0:900, co2)
 #' @export
 find.rise <- function(time, conc, rise = 6, rise.secs = 60, drop = 8,
-                      min.dur = 90, gap.secs = 5, conc.range = c(300, 20000),
+                      min.dur = 90, gap.secs = NULL, conc.range = c(300, 20000),
                       min.n = 120) {
   if(length(time) != length(conc)) stop("'time' and 'conc' must have the same length")
   ok <- !is.na(conc) & !is.na(time) & conc > conc.range[1] & conc < conc.range[2]
@@ -47,6 +51,10 @@ find.rise <- function(time, conc, rise = 6, rise.secs = 60, drop = 8,
   n <- length(time)
   if(n < min.n) return(NULL)
   ts <- as.numeric(time)
+  if(is.null(gap.secs)){
+    dt <- diff(ts); dt <- dt[dt > 0]
+    gap.secs <- max(5, 3 * if(length(dt)) stats::median(dt) else 1)
+  }
   best <- NULL
   i <- 1L
   while(i <= n){
@@ -109,7 +117,9 @@ find.rise <- function(time, conc, rise = 6, rise.secs = 60, drop = 8,
 #'           Default \code{"UTC"}.
 #' @param warn.length numerical; windows with fewer observations give a
 #'                    warning. Default 60.
-#' @param ... further arguments to \code{\link[goFlux]{find.rise}}.
+#' @param ... further arguments to \code{\link[goFlux]{find.rise}}; set
+#'            \code{rise}, \code{drop} and \code{conc.range} when
+#'            \code{gastype} is not CO2 in ppm.
 #'
 #' @returns A data.frame in the format of \code{\link[goFlux]{click.peak2}}
 #'          (all windows bound together, with \code{flag}, \code{Etime},
@@ -155,6 +165,9 @@ auto.id.rise <- function(ow.list, gastype = "CO2dry_ppm", gases = NULL,
     }
   }
   if(!is.null(plot.dir)) dir.create(plot.dir, recursive = TRUE, showWarnings = FALSE)
+  if(!grepl("^CO2.*_ppm$", gastype) && !all(c("rise", "drop", "conc.range") %in% names(list(...)))){
+    warning("the defaults of 'rise', 'drop' and 'conc.range' are for CO2 in ppm; ",
+            "set them for '", gastype, "'", call. = FALSE)}
 
   out <- vector("list", length(ow.list)); log <- vector("list", length(ow.list))
   for(k in seq_along(ow.list)){

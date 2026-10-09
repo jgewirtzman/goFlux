@@ -11,7 +11,7 @@ find.rise(
   rise.secs = 60,
   drop = 8,
   min.dur = 90,
-  gap.secs = 5,
+  gap.secs = NULL,
   conc.range = c(300, 20000),
   min.n = 120
 )
@@ -22,23 +22,25 @@ find.rise(
 \item{conc}{numerical; concentrations (ppm for CO2).}
 
 \item{rise}{numerical; minimum increase over \code{rise.secs} that starts a
-candidate rise. Default 6.}
+candidate rise, units of \code{conc}. Default 6 (ppm CO2).}
 
 \item{rise.secs}{numerical; look-ahead interval (s) for the start test.
 Default 60.}
 
 \item{drop}{numerical; tolerated drop below the running maximum before the
-rise ends. Default 8.}
+rise ends, units of \code{conc}. Default 8 (ppm CO2).}
 
 \item{min.dur}{numerical; minimum duration (s) of an accepted rise.
 Default 90.}
 
 \item{gap.secs}{numerical; a gap between consecutive samples longer than
-this (s) ends the rise. Default 5; set it above the logging
-interval.}
+this (s) ends the rise. Default \code{NULL}: three times the
+logging interval (median spacing of \code{time}), at least
+5 s.}
 
 \item{conc.range}{numerical vector of length 2; values outside this range
-are discarded before scanning. Default \code{c(300, 20000)}.}
+are discarded before scanning (e.g. analyzer error
+values). Default \code{c(300, 20000)} (ppm CO2).}
 
 \item{min.n}{numerical; minimum number of valid samples needed to scan.
 Default 120.}
@@ -53,7 +55,9 @@ Scans a concentration series for the longest stretch during which a
 chamber was evidently closed: the concentration rises by more than
 \code{rise} over \code{rise.secs}, then keeps climbing (never dropping more
 than \code{drop} below its running maximum) with no gap longer than
-\code{gap.secs}. Used by \code{\link[goFlux]{auto.id.rise}}.
+\code{gap.secs}. Used by \code{\link[goFlux]{auto.id.rise}}. The defaults
+of \code{rise}, \code{drop} and \code{conc.range} are for CO2 in ppm;
+set them for any other gas or unit.
 }
 \examples{
 set.seed(1)

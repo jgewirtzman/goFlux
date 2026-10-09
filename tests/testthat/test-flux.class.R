@@ -5,7 +5,7 @@ ft <- best$flux.term
 fl <- d[d$flag == 1, ]
 t.s <- closure.time(as.numeric(fl$POSIX.time))
 
-test_that("default: group second-difference precision, z = 1.96, t in seconds; only appends", {
+test_that("default: group second-difference precision, z = 1, t in seconds; only appends", {
   out <- flux.class(best, dataframe = d, gastype = "CH4dry_ppb")
   expect_setequal(setdiff(names(out), names(best)),
                   c("det.prec", "det.t", "det.MDF", "det.class", "det.prec.closure"))
@@ -14,7 +14,9 @@ test_that("default: group second-difference precision, z = 1.96, t in seconds; o
   expect_equal(out$det.prec.closure, s.i)
   expect_equal(out$det.prec, s.i)                       # one closure: the median is itself
   expect_equal(out$det.t, t.s)
-  expect_equal(out$det.MDF, qnorm(0.975) * s.i / t.s * ft)
+  expect_equal(out$det.MDF, s.i / t.s * ft)
+  o95 <- flux.class(best, dataframe = d, gastype = "CH4dry_ppb", conf = 0.95)
+  expect_equal(o95$det.MDF, qnorm(0.975) * s.i / t.s * ft)
   expect_equal(out$det.class, "emission")
   # the same duration as goFlux's own MDF
   expect_equal(best$MDF, best$prec / out$det.t * ft)
@@ -45,20 +47,20 @@ test_that("closures with very different slopes do not inflate the precision (flu
   h <- flux.class(fr, dataframe = tr, gastype = "CH4dry_ppb")
   expect_equal(h$det.prec[1], 1, tolerance = 0.2)
   expect_equal(h$det.t, c(600, 600))                     # 60 rows x 10 s, not nb.obs
-  expect_equal(h$det.MDF, qnorm(0.975) * h$det.prec / 600 * 0.7)
+  expect_equal(h$det.MDF, h$det.prec / 600 * 0.7)
 })
 
 test_that("supplied precision: number, vector, or data.frame by UniqueID", {
   fr <- data.frame(UniqueID = c("a", "b", "c", "d"), flux.term = 1, best.flux = c(0.2, -0.2, 0.01, NA))
   z <- qnorm(0.975)
-  o <- flux.class(fr, prec = data.frame(UniqueID = c("d", "c", "b", "a"), prec = c(4.4, 4.4, 1.5, 1.5)), t = 100)
+  o <- flux.class(fr, prec = data.frame(UniqueID = c("d", "c", "b", "a"), prec = c(4.4, 4.4, 1.5, 1.5)), t = 100, conf = 0.95)
   expect_equal(o$det.MDF, z * c(1.5, 1.5, 4.4, 4.4) / 100)
   expect_equal(o$det.class, c("emission", "uptake", "below MDF", NA))
-  expect_equal(flux.class(fr, prec = 2, t = 100)$det.MDF, rep(z * 2 / 100, 4))
+  expect_equal(flux.class(fr, prec = 2, t = 100, conf = 0.95)$det.MDF, rep(z * 2 / 100, 4))
   expect_equal(flux.class(fr, prec = 2, t = 100, conf = NULL)$det.MDF, rep(2 / 100, 4))
-  expect_equal(flux.class(fr, prec = 1:4, t = 100)$det.prec, 1:4)
+  expect_equal(flux.class(fr, prec = 1:4, t = 100, conf = 0.95)$det.prec, 1:4)
   expect_error(flux.class(fr, prec = 2), "'t'")
-  expect_error(flux.class(fr, prec = 1:3, t = 100), "prec")
+  expect_error(flux.class(fr, prec = 1:3, t = 100, conf = 0.95), "prec")
 })
 
 test_that("without prec or dataframe, goFlux's own MDF is used", {

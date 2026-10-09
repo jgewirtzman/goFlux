@@ -25,12 +25,15 @@ Additions to goFlux 0.5.0 (Qepanna/goFlux master, 3ab9c04). Cite as
   when each logged value is an average).
 * `closure.time()`: closure duration from `Etime`.
 * `flux.class()`: emission / uptake / below MDF, with the precision,
-  duration and MDF used; replaces fluxqc's `flag_detection()`.
+  duration and MDF used; replaces fluxqc's `flag_detection()`. Like `MDF()`,
+  it defaults to z = 1 (`conf = NULL`); pass `conf = 0.95` for z = 1.96.
 * `qc.flags()`: post-hoc flags (`qc.c0`, `qc.convex`, `qc.min.obs`,
   `qc.ambient` at sealing, `qc.clock`, `qc.noisy`, `qc.leak`) and
   `co2.tracer()`.
 * `find.clock.offset()`, `find.rise()`, `auto.id.rise()`,
   `windows.from.table()` (one `crop.meas()` call): window and clock utilities.
+  `find.rise()` scales its gap limit with the logging interval (fluxqc's fixed
+  5 s found no rise at 10 s logging); its thresholds default to CO2 in ppm.
 * `process.fluxes()`, `write.outputs()`: goFlux -> best.flux -> flux.class ->
   qc.flags in one call, with every option recorded.
 * `example.closures()`: ten real, anonymized closures with their geometry

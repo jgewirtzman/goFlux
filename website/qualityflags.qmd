@@ -35,7 +35,7 @@ Every check is a toggle: set its argument to `NULL` to skip it, and the two that
 
 ## Drift is not a flag
 
-None of these checks measures instrument drift or a slow leak: both change the concentration smoothly over a closure and look like a flux, and a difference-based precision is blind to them. Make periodic blank closures on an inert surface (a sealed chamber on a plate or foil) and compare fluxes with their apparent flux (`blank.slope`); check the analyzer with reference, zero or span gases. The ambient shoulders around closures mostly reflect real ambient variability (in our records, symmetric and 2–16× the threshold): use them as a flag only, never subtract them.
+None of these checks measures instrument drift or a slow leak: both change the concentration smoothly over a closure and look like a flux, and a difference-based precision is blind to them. Make periodic blank closures on an inert surface (a sealed chamber on a plate or foil) and compare fluxes with their apparent flux (`blank.slope`); check the analyzer with reference, zero or span gases. The ambient shoulders around closures mostly reflect real ambient variability: use them as a flag only, never subtract them.
 
 ## The CO~2~ tracer
 

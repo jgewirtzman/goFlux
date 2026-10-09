@@ -61,7 +61,7 @@ in \code{dataframe} if \code{offset} is different between samples.
 
 \item{Vtot}{numerical value; total volume inside the chamber, tubes, instruments,
 etc. (L): chamber or collar, tubing and the analyzer's internal
-volume, recorded component by component (see
+volume (from the manufacturer), recorded component by component (see
 \code{\link[goFlux]{flux.term}}). Alternatively, provide the column \code{Vtot} in
 \code{dataframe} if \code{Vtot} is different between samples. If
 \code{Vtot} is missing, the function will calculate it as
