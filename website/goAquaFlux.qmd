@@ -92,6 +92,23 @@ flux.plot.aqua(fluxres, IDed, gastype = "CH4dry_ppb",
                plot.display = c("diffusive.window", "ebullition.events"))
 ```
 
+## The de-ebulliated diffusive window
+
+By default the diffusive flux of the bubble gas is fitted on the observations before the first bubble (`diffusion.window = "pre_bubble"`). An incubation that bubbles within the first `diffusion.minimum_window` observations (30) then gets no diffusive flux. `diffusion.window = "deebulliated"` uses the event models that `find.bubbles()` has already fitted: each event's settled step and re-equilibration transient are subtracted from the trace, the samples of the rise itself (from the event's start to its peak) are set to `flag = 0`, and the LM/HM models are fitted on the remaining observations of the whole incubation. The window used is returned in `flux_summary$diffusive_window`, and the de-ebulliated traces come back as a fourth element, `deebulliated`, which `flux.plot.aqua()` draws (blue points, masked rise samples as grey crosses).
+
+```{r}
+#| eval: false
+fluxres <- goAquaFlux(IDed, gastype = "CH4dry_ppb",
+                      diffusion.window = "deebulliated")
+fluxres$flux_summary[, c("UniqueID", "flux_diffusive", "n_obs.diffusion",
+                         "diffusive_window", "flux_ebullition")]
+flux.plot.aqua(fluxres, IDed, gastype = "CH4dry_ppb")
+```
+
+![Diffusive flux bias of the naive whole-trace LM, the pre-bubble window and the de-ebulliated trace as a function of the time of the first bubble, on 2400 synthetic incubations with known slope and bubbles (left), and the fraction of incubations for which the pre-bubble window returns `NA` (right).](images/deebulliated_timing.png){fig-alt="Boxplots of diffusive flux bias by first-bubble time for three methods, and a bar chart of the NA fraction of the pre-bubble window."}
+
+The option is only as good as the event fits, so read the plot before trusting it. On synthetic traces with a single well-resolved bubble the de-ebulliated flux is within 2 % of the truth, and where the first bubble comes before 30 s it returns a value on 96 % of the incubations (median bias 5 %) against `NA` on two thirds of them for the default window. It fails where the detector fails: bubbles closer than about 20 s are merged into one event, an event in the last ten seconds of the incubation is not fitted, steps below three times the noise are mostly missed, and every missed event stays in the "de-ebulliated" trace and biases the fit. The default window remains `"pre_bubble"`. The validation behind these numbers ships with the package in `inst/validation/`.
+
 ## Functions
 
 ### `goAquaFlux` for computing gas fluxes from aquatic chamber measurements {#goAquaFlux}

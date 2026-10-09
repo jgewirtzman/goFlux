@@ -1,0 +1,49 @@
+---
+title: "Quality flags after best.flux"
+subtitle: "Independent, toggleable checks appended to the flux table"
+engine: knitr
+editor: visual
+---
+
+`best.flux()` selects the flux estimate and flags the fit ([criteria](bestflux.qmd#criteria-for-flux-estimate-selection-and-flagging)). `qc.flags()` adds a second layer of checks on the physics of the measurement itself. It never modifies or removes anything: each check is a new logical column (`TRUE` = the check fired, `NA` = could not be evaluated) and `qc.any` says whether any did. Filter on them downstream as you see fit.
+
+```{r}
+#| eval: false
+library(goFlux)
+data(manID.UGGA)
+
+CH4_best <- best.flux(goFlux(manID.UGGA, "CH4dry_ppb"))
+
+CH4_qc <- qc.flags(CH4_best, dataframe = manID.UGGA, gastype = "CH4dry_ppb")
+CH4_qc[, c("UniqueID", "best.flux", "qc.c0", "qc.convex", "qc.min.obs",
+           "qc.ambient", "qc.clock", "qc.noisy", "qc.any")]
+```
+
+| column | fires when | argument |
+|---|---|---|
+| `qc.c0` | the starting concentration `C0` exceeds `c0.mult` × the median `C0` of its group (`by`): the chamber was not at ambient at closure | `c0.mult = 1.5`, `by = NULL` |
+| `qc.convex` | the Hutchinson-Mosier curvature is convex (`HM.k < 0`, accelerating change): a leak, a disturbance or a late seal; only possible when `goFlux()` was run with `k.min < 0` | – |
+| `qc.min.obs` | `nb.obs` is below `min.obs` | `min.obs = 60` |
+| `qc.ambient` | at the moment of sealing, the headspace already differs from ambient: the median of the first `ambient.secs` seconds after the recorded closure start (`seal.time`) differs from the median of the `ambient.pre` seconds before it by more than `ambient.sigma` × max(group σ, MAD of the pre-closure record) (needs `dataframe`) | `ambient.sigma = 3`, `ambient.secs = 10`, `ambient.pre = 60`, `seal.time = "start.time"` |
+| `qc.clock` | the fitting window starts more than one logging interval before the recorded start: field and analyzer clocks disagree, so `qc.ambient` is not evaluated (`NA`) | – |
+| `qc.noisy` | the closure's own second-difference precision exceeds `noisy.mult` × its group's precision (median over closures) from [`empirical.prec()`](precision.qmd): a disturbed measurement (needs `dataframe`) | `noisy.mult = 1.5` |
+
+The ambient check is made at sealing, not at the start of the fitting window: the window follows the dead band and may legitimately be enriched already. `seal.time` must be the recorded start (`start.time` after `click.peak2()`), not `start.time_corr` and not the `start.time` returned by `crop.meas()`, which has been moved by the dead band. The pre-closure trend is reported (`qc.ambient.drift`) but never raises the flag: air outside a sealed chamber cannot bias its slope.
+
+Every check is a toggle: set its argument to `NULL` to skip it, and the two that need the concentration data are skipped when `dataframe` is absent. The helper values behind the flags (`qc.c0.ratio`, `qc.ambient.dev`, `qc.ambient.drift`, `qc.prec`, `qc.noisy.ratio`) are appended too.
+
+## Drift is not a flag
+
+None of these checks measures instrument drift or a slow leak: both change the concentration smoothly over a closure and look like a flux, and a difference-based precision is blind to them. Make periodic blank closures on an inert surface (a sealed chamber on a plate or foil) and compare fluxes with their apparent flux; use the ambient trend around closures only as a flag of an unstable analyzer.
+
+## The CO~2~ tracer
+
+On a respiring surface (soil, tree stems, most vegetation) a sealed chamber must accumulate CO~2~. A CO~2~ flux that is not clearly positive means the chamber leaked or was never sealed, whatever the CH~4~ or N~2~O number says. This is a plain comparison between two `best.flux()` tables, so it is a one-liner rather than a flag:
+
+```{r}
+#| eval: false
+CO2_best <- best.flux(goFlux(manID.UGGA, "CO2dry_ppm"))
+CH4_best$co2.tracer <- co2.tracer(CO2_best, CH4_best)   # TRUE: CO2 best.flux > 0 with LM.p.val < 0.05
+```
+
+Do not use it on surfaces without respiratory CO~2~ efflux: open water, lit foliage, dead wood.

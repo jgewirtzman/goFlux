@@ -15,7 +15,7 @@ Aside from the typical workflow of flux calculation, one may wish to estimate ot
 
 ### `crop.meas` for additional modifications of the observation window {#crop.meas}
 
-Crop measurements from the start, from the end, or adjust the deadband. Individual parameters can be provided for each measurement, in an auxiliary file, or the same parameters can be applied to all measurements.
+Crop measurements from the start, from the end, or adjust the deadband. Individual parameters can be provided for each measurement, in an auxiliary file (`max.obs.length = "aux"`, `deadband = "aux"`), or the same parameters can be applied to all measurements. When both `auto.deadband()`/`crop.meas()` and `goAquaFlux()` are used, trim the window first and detect the bubbles on the trimmed window.
 
 ::: {.callout-note}
 Code chunks under **Usage** sections are not part of the demonstration. They are meant to show how to use the function arguments.

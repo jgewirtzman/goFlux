@@ -128,6 +128,8 @@ import2RData(path = file.path, instrument = "LI-7810",
              date.format = "ymd", prec = c(3.5, 0.6, 45))
 ```
 
+The LI-7810 writes one `.data` file per power cycle, which can span months. `import.LI7810(inputfile, dates = c("2026-05-22", "2026-05-23"))` keeps only the rows of the given dates before parsing, so a campaign-long file is imported in seconds instead of minutes.
+
 #### LI-7820 {#sec-import2RData-LICOR-LI7820}
 
 ```{r}
