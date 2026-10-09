@@ -39,20 +39,28 @@
 #'                its spread. Default 60.
 #' @param seal.time character string; the column of \code{dataframe} holding
 #'                the recorded closure start (the moment of sealing). Default
-#'                \code{"start.time"}, the auxfile start carried by
+#'                \code{NULL}: \code{"cham.close"} when \code{dataframe} has
+#'                it (output of \code{\link[goFlux]{crop.meas}} or
+#'                \code{\link[goFlux]{windows.from.table}}, whose
+#'                \code{start.time} has been moved to the start of the window),
+#'                else \code{"start.time"} (the auxfile start carried by
 #'                \code{\link[goFlux]{obs.win}} and
-#'                \code{\link[goFlux]{click.peak2}}. Do not use
-#'                \code{start.time_corr} (the start of the fitting window) or
-#'                the \code{start.time} returned by
-#'                \code{\link[goFlux]{crop.meas}}, which has been moved by the
-#'                dead band: keep the original start in a column of its own and
-#'                name it here.
+#'                \code{\link[goFlux]{click.peak2}}). Never use the start of
+#'                the fitting window (\code{start.time_corr}).
 #' @param noisy.mult numerical; \code{qc.noisy} fires when the closure's own
 #'                precision exceeds \code{noisy.mult} times the group precision
 #'                (both from \code{\link[goFlux]{empirical.prec}}, second
 #'                differences of the flagged rows; the group value is the median
 #'                over its closures, at the closure's own logging interval): a
 #'                disturbed closure. Default 1.5. Needs \code{dataframe}.
+#' @param leak.rate numerical; optional bench-measured leak rate, the fraction
+#'                of the headspace-ambient difference exchanged per second
+#'                (e.g. the decay constant of a spiked, sealed chamber).
+#'                Default \code{NULL}. See \emph{Leaks}.
+#' @param blank.slope numerical; optional apparent slope (units of
+#'                \code{gastype} per second) of blank closures on an inert
+#'                surface, which measures drift and leaks together. Default
+#'                \code{NULL}. See \emph{Leaks}.
 #'
 #' @details
 #' \strong{Ambient start (\code{qc.ambient}).} The check is made at the moment
@@ -86,6 +94,18 @@
 #' fluxes with. The ambient-shoulder trend (\code{qc.ambient.drift}) can flag
 #' an unstable analyzer but cannot measure drift inside the chamber.
 #'
+#' \strong{Leaks (\code{qc.leak}).} With \code{leak.rate}, the apparent flux a
+#' leak alone could produce is \code{leak.rate} times the largest
+#' headspace-ambient difference during the closure (the concentration range of
+#' the flagged rows of \code{dataframe}, else \code{|Ct - C0|}) times
+#' \code{flux.term}; with \code{blank.slope}, \code{|blank.slope|} times
+#' \code{flux.term}; the larger of the two when both are given
+#' (\code{qc.leak.flux}). \code{qc.leak} fires when it reaches the minimal
+#' detectable flux of the row (\code{det.MDF} from
+#' \code{\link[goFlux]{flux.class}} if present, else goFlux's \code{MDF}): the
+#' flux cannot be separated from leakage or drift. Skipped when both are
+#' \code{NULL}.
+#'
 #' \code{qc.convex} fires when the Hutchinson-Mosier curvature is convex
 #' (\code{HM.k < 0}, accelerating concentration change, which no chamber
 #' mechanism produces and which points at a leak, a disturbance or a delayed
@@ -99,11 +119,12 @@
 #'
 #' @returns \code{flux.result} with the columns \code{qc.c0}, \code{qc.convex},
 #'          \code{qc.min.obs}, \code{qc.ambient}, \code{qc.clock},
-#'          \code{qc.noisy} (those requested) and \code{qc.any} appended, plus
+#'          \code{qc.noisy}, \code{qc.leak} (those requested) and \code{qc.any}
+#'          appended, plus
 #'          the helper values \code{qc.c0.ratio}, \code{qc.ambient.dev} and
 #'          \code{qc.ambient.drift} (signed, in units of the ambient
 #'          tolerance), \code{qc.prec} (the group precision used) and
-#'          \code{qc.noisy.ratio}.
+#'          \code{qc.noisy.ratio} and \code{qc.leak.flux}.
 #'
 #' @include goFlux-package.R
 #' @include empirical.prec.R
@@ -122,7 +143,8 @@
 qc.flags <- function(flux.result, dataframe = NULL, gastype = NULL,
                      c0.mult = 1.5, by = NULL, min.obs = 60,
                      ambient.sigma = 3, ambient.secs = 10, ambient.pre = 60,
-                     seal.time = "start.time", noisy.mult = 1.5) {
+                     seal.time = NULL, noisy.mult = 1.5,
+                     leak.rate = NULL, blank.slope = NULL) {
 
   # Check arguments
   if(missing(flux.result)) stop("'flux.result' is required")
@@ -139,6 +161,8 @@ qc.flags <- function(flux.result, dataframe = NULL, gastype = NULL,
   for(a in c("ambient.secs", "ambient.pre")){
     v <- get(a)
     if(!is.numeric(v) || length(v) != 1 || !(v > 0)) stop("'", a, "' must be a single number > 0")}
+  if(is.null(seal.time)){
+    seal.time <- if(!is.null(dataframe) && "cham.close" %in% names(dataframe)) "cham.close" else "start.time"}
   if(!is.character(seal.time) || length(seal.time) != 1) stop("'seal.time' must be a character string")
 
   fx <- as.data.frame(flux.result)
@@ -170,20 +194,10 @@ qc.flags <- function(flux.result, dataframe = NULL, gastype = NULL,
   # flags needing the concentration data
   if(!is.null(dataframe) && (!is.null(ambient.sigma) || !is.null(noisy.mult))){
     dd <- as.data.frame(dataframe)
-    dd$qc_by <- g[match(as.character(dd$UniqueID), uid)]
-    dd <- dd[!is.na(dd$qc_by), ]
     # per-closure and group second-difference precision (empirical.prec);
     # each closure gets its group's value at the closure's own logging interval
-    ep <- empirical.prec(dd, gastype, by = "qc_by")
-    clo <- attr(ep, "closures")
-    i.c <- match(uid, clo$UniqueID)
-    s.clo <- clo$prec[i.c]; dt.clo <- clo$dt_s[i.c]
-    s.grp <- vapply(seq_len(n), function(i){
-      e <- ep[ep$qc_by == g[i], , drop = FALSE]
-      if(nrow(e) == 0) return(NA_real_)
-      j <- if(is.na(dt.clo[i])) integer(0) else which(!is.na(e$dt_s) & e$dt_s == dt.clo[i])
-      if(length(j) == 0) j <- which.max(ifelse(is.na(e$n.closures), -1, e$n.closures))
-      e$prec[j[1]] }, numeric(1))
+    pc <- prec.by.closure(dd, gastype, uid, g)
+    s.clo <- pc$closure; s.grp <- pc$group; dt.clo <- pc$dt
     fx$qc.prec <- s.grp
 
     # qc.ambient (at sealing) and qc.clock
@@ -223,6 +237,31 @@ qc.flags <- function(flux.result, dataframe = NULL, gastype = NULL,
       fx$qc.noisy <- ifelse(is.finite(fx$qc.noisy.ratio), fx$qc.noisy.ratio > noisy.mult, NA)
       flags <- c(flags, "qc.noisy")
     }
+  }
+
+  # qc.leak: apparent flux from a measured leak rate or blank-closure slope
+  if(!is.null(leak.rate) || !is.null(blank.slope)){
+    if(!any(grepl("\\<flux.term\\>", names(fx)))) stop("'flux.result' must contain 'flux.term' for the leak flag")
+    app <- rep(0, n)
+    if(!is.null(leak.rate)){
+      if(!is.numeric(leak.rate) || length(leak.rate) != 1 || leak.rate < 0) stop("'leak.rate' must be a single number >= 0")
+      dC <- if(!is.null(dataframe)){
+        dd <- as.data.frame(dataframe)
+        dd <- dd[!is.na(dd$flag) & dd$flag == 1, ]
+        r <- vapply(split(dd[[gastype]], as.character(dd$UniqueID)),
+                    function(v) diff(range(v, na.rm = TRUE)), numeric(1))
+        r[match(uid, names(r))]
+      } else if(all(c("C0", "Ct") %in% names(fx))) abs(fx$Ct - fx$C0) else rep(NA_real_, n)
+      app <- leak.rate * dC * fx$flux.term
+    }
+    if(!is.null(blank.slope)){
+      if(!is.numeric(blank.slope) || length(blank.slope) != 1) stop("'blank.slope' must be a single number")
+      app <- pmax(app, abs(blank.slope) * fx$flux.term)
+    }
+    mdf <- if("det.MDF" %in% names(fx)) fx$det.MDF else if("MDF" %in% names(fx)) fx$MDF else rep(NA_real_, n)
+    fx$qc.leak.flux <- app
+    fx$qc.leak <- ifelse(is.na(app) | is.na(mdf), NA, app >= mdf)
+    flags <- c(flags, "qc.leak")
   }
 
   m <- as.matrix(fx[, unlist(flags), drop = FALSE])

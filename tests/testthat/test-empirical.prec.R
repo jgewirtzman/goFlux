@@ -177,8 +177,8 @@ test_that("MDF: t is elapsed seconds, so a 5-s-logged trace gives the same MDF*t
   r1 <- suppressWarnings(goFlux(u, "CH4dry_ppb"))
   r5 <- suppressWarnings(goFlux(u5, "CH4dry_ppb", warn.length = 10))
   expect_equal(r1$nb.obs, 180L); expect_equal(r5$nb.obs, 36L)
-  # goFlux uses t = max(Etime) + 1 on the re-anchored flagged rows
-  tt <- function(d) { e <- d$Etime[d$flag == 1]; max(e) - min(e) + 1 }
+  # goFlux uses t = span of the flagged rows + one logging interval (closure.time)
+  tt <- function(d) { e <- d$Etime[d$flag == 1]; max(e) - min(e) + median(diff(sort(e))[diff(sort(e)) > 0]) }
   expect_equal(r1$MDF * tt(u) / r1$prec, r1$flux.term)
   expect_equal(r5$MDF * tt(u5) / r5$prec, r5$flux.term)
   # identical up to the subsampled mean of Tcham/Pcham in flux.term

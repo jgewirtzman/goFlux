@@ -14,8 +14,10 @@ qc.flags(
   ambient.sigma = 3,
   ambient.secs = 10,
   ambient.pre = 60,
-  seal.time = "start.time",
-  noisy.mult = 1.5
+  seal.time = NULL,
+  noisy.mult = 1.5,
+  leak.rate = NULL,
+  blank.slope = NULL
 )
 }
 \arguments{
@@ -61,14 +63,14 @@ its spread. Default 60.}
 
 \item{seal.time}{character string; the column of \code{dataframe} holding
 the recorded closure start (the moment of sealing). Default
-\code{"start.time"}, the auxfile start carried by
+\code{NULL}: \code{"cham.close"} when \code{dataframe} has
+it (output of \code{\link[goFlux]{crop.meas}} or
+\code{\link[goFlux]{windows.from.table}}, whose
+\code{start.time} has been moved to the start of the window),
+else \code{"start.time"} (the auxfile start carried by
 \code{\link[goFlux]{obs.win}} and
-\code{\link[goFlux]{click.peak2}}. Do not use
-\code{start.time_corr} (the start of the fitting window) or
-the \code{start.time} returned by
-\code{\link[goFlux]{crop.meas}}, which has been moved by the
-dead band: keep the original start in a column of its own and
-name it here.}
+\code{\link[goFlux]{click.peak2}}). Never use the start of
+the fitting window (\code{start.time_corr}).}
 
 \item{noisy.mult}{numerical; \code{qc.noisy} fires when the closure's own
 precision exceeds \code{noisy.mult} times the group precision
@@ -76,15 +78,26 @@ precision exceeds \code{noisy.mult} times the group precision
 differences of the flagged rows; the group value is the median
 over its closures, at the closure's own logging interval): a
 disturbed closure. Default 1.5. Needs \code{dataframe}.}
+
+\item{leak.rate}{numerical; optional bench-measured leak rate, the fraction
+of the headspace-ambient difference exchanged per second
+(e.g. the decay constant of a spiked, sealed chamber).
+Default \code{NULL}. See \emph{Leaks}.}
+
+\item{blank.slope}{numerical; optional apparent slope (units of
+\code{gastype} per second) of blank closures on an inert
+surface, which measures drift and leaks together. Default
+\code{NULL}. See \emph{Leaks}.}
 }
 \value{
 \code{flux.result} with the columns \code{qc.c0}, \code{qc.convex},
          \code{qc.min.obs}, \code{qc.ambient}, \code{qc.clock},
-         \code{qc.noisy} (those requested) and \code{qc.any} appended, plus
+         \code{qc.noisy}, \code{qc.leak} (those requested) and \code{qc.any}
+         appended, plus
          the helper values \code{qc.c0.ratio}, \code{qc.ambient.dev} and
          \code{qc.ambient.drift} (signed, in units of the ambient
          tolerance), \code{qc.prec} (the group precision used) and
-         \code{qc.noisy.ratio}.
+         \code{qc.noisy.ratio} and \code{qc.leak.flux}.
 }
 \description{
 Adds simple, independent logical flags to the output of
@@ -124,6 +137,18 @@ them. Make periodic blank closures on an inert surface (a sealed chamber on
 a plate or foil): their apparent flux is the drift or leak floor to compare
 fluxes with. The ambient-shoulder trend (\code{qc.ambient.drift}) can flag
 an unstable analyzer but cannot measure drift inside the chamber.
+
+\strong{Leaks (\code{qc.leak}).} With \code{leak.rate}, the apparent flux a
+leak alone could produce is \code{leak.rate} times the largest
+headspace-ambient difference during the closure (the concentration range of
+the flagged rows of \code{dataframe}, else \code{|Ct - C0|}) times
+\code{flux.term}; with \code{blank.slope}, \code{|blank.slope|} times
+\code{flux.term}; the larger of the two when both are given
+(\code{qc.leak.flux}). \code{qc.leak} fires when it reaches the minimal
+detectable flux of the row (\code{det.MDF} from
+\code{\link[goFlux]{flux.class}} if present, else goFlux's \code{MDF}): the
+flux cannot be separated from leakage or drift. Skipped when both are
+\code{NULL}.
 
 \code{qc.convex} fires when the Hutchinson-Mosier curvature is convex
 (\code{HM.k < 0}, accelerating concentration change, which no chamber

@@ -57,6 +57,12 @@ estimated from the data with \code{\link[goFlux]{empirical.prec}}; a
 datasheet precision quoted at 1 s can be rescaled to the logging interval
 with \code{\link[goFlux]{spec.at.interval}}.
 }
+\examples{
+ft <- flux.term(V_L = 7.08, P_kPa = 101.3, A_cm2 = 4254, T_C = 26)
+MDF(p = 1.1, t = 540, flux.term = ft)              # one-sigma benchmark
+MDF(p = 1.1, t = 540, flux.term = ft, conf = 0.95) # z = 1.96
+
+}
 \references{
 Christiansen, J. R., Outhwaite, J., & Smukler, S. M. (2015).
 Comparison of
@@ -85,4 +91,3 @@ nighttime. \emph{PLoS ONE}, 13(2), e0191352.
          \code{\link[goFlux]{empirical.prec}} to estimate \code{p} from the data,
          \code{\link[goFlux]{spec.at.interval}}
 }
-\keyword{internal}

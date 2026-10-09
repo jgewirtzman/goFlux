@@ -23,8 +23,8 @@ test_that("goFlux() MDF uses span + interval at 1, 5 and 10 s logging", {
     d <- thin_to(manID.UGGA, dt)
     flux <- suppressWarnings(goFlux(d, "CH4dry_ppb"))
     et <- d$Etime[d$flag == 1]
+    # the example has one duplicate timestamp: 180 rows span 178 s at 1 Hz
     t_exp <- diff(range(et)) + dt
-    expect_equal(t_exp, 180)
     expect_equal(flux$MDF, flux$prec / t_exp * flux$flux.term, tolerance = 1e-10,
                  info = paste("dt =", dt))
   }

@@ -87,3 +87,34 @@ test_that("qc.flags: qc.noisy uses the per-closure second-difference precision",
   expect_equal(q$qc.noisy, c(rep(FALSE, 5), TRUE))
   expect_equal(q$qc.noisy.ratio[6], 4, tolerance = 0.3)
 })
+
+test_that("qc.flags: qc.leak from a measured leak rate or a blank-closure slope", {
+  fx <- data.frame(UniqueID = c("a", "b"), flux.term = 0.7, MDF = c(0.001, 0.1), C0 = 2000, Ct = 2100)
+  q <- qc.flags(fx, blank.slope = 0.01)
+  expect_equal(q$qc.leak.flux, c(0.007, 0.007))
+  expect_equal(q$qc.leak, c(TRUE, FALSE))
+  q2 <- qc.flags(fx, leak.rate = 1e-3, blank.slope = 0.01)
+  expect_equal(q2$qc.leak.flux, rep(max(1e-3 * 100 * 0.7, 0.007), 2))
+  # det.MDF from flux.class() takes precedence over goFlux's MDF
+  fx$det.MDF <- c(0.1, 0.001)
+  expect_equal(qc.flags(fx, blank.slope = 0.01)$qc.leak, c(FALSE, TRUE))
+  expect_true(qc.flags(fx, blank.slope = 0.01)$qc.any[2])
+  expect_false("qc.leak" %in% names(qc.flags(fx)))
+  # with the concentration data, the range of the flagged rows is used
+  t0 <- as.POSIXct("2024-06-01", tz = "UTC")
+  d <- data.frame(UniqueID = rep(c("a", "b"), each = 100), flag = 1, Etime = rep(0:99, 2),
+                  POSIX.time = t0 + c(0:99, 1000 + 0:99), CH4dry_ppb = c(2000 + 0:99, 2000 + 2 * (0:99)))
+  q3 <- qc.flags(fx, dataframe = d, gastype = "CH4dry_ppb", leak.rate = 1e-3)
+  expect_equal(q3$qc.leak.flux, 1e-3 * c(99, 198) * 0.7)
+})
+
+test_that("qc.flags: seal.time defaults to cham.close when present", {
+  t0 <- as.POSIXct("2024-06-01 12:00:00", tz = "UTC")
+  set.seed(3)
+  tt <- 0:239
+  x <- ifelse(tt < 90, 2000, 2040 + 0.5 * (tt - 90)) + stats::rnorm(240, 0, 1)
+  d <- data.frame(UniqueID = "a", POSIX.time = t0 + tt, cham.close = t0 + 90,
+                  start.time = t0 + 120, flag = as.numeric(tt >= 120), Etime = tt - 120, CH4dry_ppb = x)
+  q <- qc.flags(data.frame(UniqueID = "a"), dataframe = d, gastype = "CH4dry_ppb")
+  expect_true(q$qc.ambient)           # judged at cham.close (90 s), where the 40 ppb excess appears
+})

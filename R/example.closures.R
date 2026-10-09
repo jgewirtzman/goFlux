@@ -1,0 +1,128 @@
+#' Example chamber closures with real chamber geometry
+#'
+#' Ten real, anonymized chamber closures from two analyzer families (ABB/LGR
+#' UGGA/GLA131 and LI-COR LI-7810), returned in the format of
+#' \code{\link[goFlux]{click.peak2}} output with an auxfile carrying the real
+#' geometry of each closure. Each closure is the campaign's own observation
+#' window (rows around the window with \code{flag = 0}, the operator-selected
+#' window with \code{flag = 1}; the ebullition closure is the whole
+#' segmented incubation). They illustrate detection classes and failure modes
+#' (clean emission, uptake, below MDF, failed seal, a bubble).
+#'
+#' @param which character vector; keys of the closures to return (see
+#'              Details). Default \code{NULL}: all ten.
+#' @param dead.band numerical; \code{NULL} (default) keeps the shipped
+#'                  \code{flag} column (the selected window). A number
+#'                  re-flags each closure from \code{start.time + dead.band}
+#'                  to the end of its record.
+#' @param prec numerical vector of length 3; instrument precision of CO2 (ppm),
+#'             CH4 (ppb) and H2O (ppm), written to the \code{*_prec} columns.
+#'             Default \code{c(0.35, 0.9, 200)}.
+#'
+#' @details
+#' Keys (campaign type, analyzer and logging interval):
+#' \describe{
+#'   \item{\code{emission_stem_semirigid}}{clean emission; upland tree stem,
+#'     UGGA, 1 s, 765 s window.}
+#'   \item{\code{emission_upland_stem}}{clean mid-range emission; upland tree
+#'     stem, UGGA, 5 s.}
+#'   \item{\code{below_detection_stem}}{CO2 rises cleanly, CH4 flat; upland
+#'     tree stem, UGGA, 5 s.}
+#'   \item{\code{failed_closure_stem}}{CO2 not rising, CH4 below MDF; upland
+#'     tree stem, UGGA, 1 s.}
+#'   \item{\code{ambiguous_stem}}{CH4 uptake just beyond the MDF over a flat
+#'     CO2 tracer; upland tree stem, UGGA, 1 s.}
+#'   \item{\code{uptake_stem}}{strong stem uptake with CO2 rising; upland tree
+#'     stem, UGGA, 1 s.}
+#'   \item{\code{uptake_soil}}{strong soil CH4 uptake; forest soil collar,
+#'     UGGA, 1 s.}
+#'   \item{\code{high_flux_wetland_stem}}{large mangrove-stem emission;
+#'     GLA131, 1 s.}
+#'   \item{\code{ebullition_floating}}{one bubble (5 samples at 42-46 s,
+#'     about 675 ppb) in a floating-chamber incubation; GLA131, 1 s. For
+#'     \code{\link[goFlux]{goAquaFlux}}.}
+#'   \item{\code{emission_li7810_stem}}{clean emission, second analyzer
+#'     format; tree stem, LI-7810, 1 s (\code{Tcham} is the campaign
+#'     default).}
+#' }
+#'
+#' \strong{Anonymization.} \code{UniqueID}s are descriptive keys; tree tags,
+#' plot codes, species, operators, file names and dates are removed; the time
+#' axis is a synthetic calendar (2000-01-01 + one day per closure) that keeps
+#' every sampling interval; analyzer, chamber family, geometry (\code{Area},
+#' \code{Vtot}, \code{Tcham}, \code{Pcham}), season and year are kept. The
+#' extraction script (\code{build_examples.R}) and per-closure checks
+#' (\code{example_closures_diagnostics.csv}: timestamp gaps and the largest
+#' single-sample step) are in
+#' \code{system.file("extdata", "example_closures", package = "goFlux")}.
+#'
+#' \strong{Data sources and citation.} Upland stem and soil closures:
+#' Yale-Myers Forest (CT, USA) chamber-flux record 2020-2021 (J. Gewirtzman
+#' and colleagues, Yale School of the Environment). Wetland closures
+#' (\code{high_flux_wetland_stem}, \code{ebullition_floating}): ground
+#' component of the NASA Carbon Monitoring System BlueFlux campaign, south
+#' Florida (Poulter et al. 2023). \code{emission_li7810_stem}: Santa Fe 2026
+#' campaign (J. Gewirtzman). Released with the permission of the data owners.
+#'
+#' @returns A list with \code{data} (one data.frame, all closures bound
+#'          together, with \code{flag}, \code{Etime}, \code{start.time_corr},
+#'          \code{end.time_corr} and \code{obs.length_corr}) and \code{aux}
+#'          (one row per closure: \code{UniqueID}, \code{start.time},
+#'          \code{obs.length}, \code{Area}, \code{Vtot}, \code{Tcham},
+#'          \code{Pcham}, \code{start.time_corr}, \code{end.time_corr},
+#'          \code{kind}, \code{campaign_type}, \code{season_year},
+#'          \code{analyzer}, \code{chamber_family} and \code{campaign}, an
+#'          anonymous campaign key usable as \code{by}).
+#'
+#' @references
+#' Poulter, B., et al. (2023). Multi-scale observations of mangrove blue carbon
+#' ecosystem fluxes: The NASA Carbon Monitoring System BlueFlux field campaign.
+#' \emph{Environmental Research Letters}, 18, 075009.
+#' \doi{10.1088/1748-9326/acdae6}
+#'
+#' @include goFlux-package.R
+#'
+#' @seealso \code{\link[goFlux]{process.fluxes}}, \code{\link[goFlux]{flux.class}}
+#'
+#' @examples
+#' ex <- example.closures()
+#' ex$aux[, c("UniqueID", "campaign_type", "analyzer")]
+#' one <- example.closures("failed_closure_stem")$data
+#' table(one$flag)
+#' @export
+example.closures <- function(which = NULL, dead.band = NULL, prec = c(0.35, 0.9, 200)) {
+  dir <- system.file("extdata", "example_closures", package = "goFlux")
+  f <- file.path(dir, "example_closures.csv")
+  fa <- file.path(dir, "example_closures_aux.csv")
+  if(dir == "" || !file.exists(f) || !file.exists(fa)) stop("example files not found in the installed package")
+  if(!is.numeric(prec) || length(prec) != 3) stop("'prec' must be numeric of length 3")
+  d <- utils::read.csv(f, stringsAsFactors = FALSE)
+  ax <- utils::read.csv(fa, stringsAsFactors = FALSE)
+  if(!is.null(which)){
+    miss <- setdiff(which, ax$UniqueID)
+    if(length(miss)) stop("no example matches: ", paste(miss, collapse = ", "),
+                          "; available: ", paste(ax$UniqueID, collapse = ", "))
+    ax <- ax[match(which, ax$UniqueID), ]
+  }
+  for(cc in c("start.time", "start.time_corr", "end.time_corr")) ax[[cc]] <- as.POSIXct(ax[[cc]], tz = "UTC")
+  d$POSIX.time <- as.POSIXct(d$POSIX.time, tz = "UTC", format = "%Y-%m-%d %H:%M:%OS")
+  out <- vector("list", nrow(ax))
+  for(i in seq_len(nrow(ax))){
+    a <- ax[i, ]
+    x <- d[d$UniqueID == a$UniqueID, ]
+    x$start.time <- a$start.time; x$obs.length <- a$obs.length
+    x$Area <- a$Area; x$Vtot <- a$Vtot; x$Tcham <- a$Tcham; x$Pcham <- a$Pcham
+    x$CO2_prec <- prec[1]; x$CH4_prec <- prec[2]; x$H2O_prec <- prec[3]
+    if(is.null(dead.band)){
+      fl <- x$flag
+      x <- flag.window(x, a$start.time_corr, a$end.time_corr)
+      x$flag <- fl                       # keep the shipped (selected) flags exactly
+    } else {
+      x <- flag.window(x, a$start.time + dead.band, max(x$POSIX.time) + 0.01)
+    }
+    out[[i]] <- x
+  }
+  data <- do.call(rbind, out); rownames(data) <- NULL
+  rownames(ax) <- NULL
+  list(data = data, aux = ax)
+}

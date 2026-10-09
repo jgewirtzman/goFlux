@@ -395,3 +395,26 @@ hadamard.closure <- function(v, tm = NULL, tol = 0.2){
        zero.frac = if(n1 > 0) sum(d1 == 0) / n1 else NA_real_,
        prec.d1c = prec.d1c, d1c = d1c, n.zero = sum(d1 == 0), n1 = n1)
 }
+
+# Per-closure and group second-difference precision for the rows of a flux
+# table. dataframe: flagged concentration data; uid: UniqueID of each row of
+# the flux table; g: its group. Each closure gets its group's value at the
+# closure's own logging interval (or, if no group row has that interval, the
+# group row with the most closures). Returns list(closure, group, dt).
+prec.by.closure <- function(dataframe, gastype, uid, g, warn = TRUE){
+  dd <- as.data.frame(dataframe)
+  dd$qc_by <- g[match(as.character(dd$UniqueID), uid)]
+  dd <- dd[!is.na(dd$qc_by), ]
+  ep <- if(warn) empirical.prec(dd, gastype, by = "qc_by")
+        else suppressWarnings(empirical.prec(dd, gastype, by = "qc_by", warn = FALSE))
+  clo <- attr(ep, "closures")
+  i.c <- match(uid, clo$UniqueID)
+  s.clo <- clo$prec[i.c]; dt.clo <- clo$dt_s[i.c]
+  s.grp <- vapply(seq_along(uid), function(i){
+    e <- ep[ep$qc_by == g[i], , drop = FALSE]
+    if(nrow(e) == 0) return(NA_real_)
+    j <- if(is.na(dt.clo[i])) integer(0) else which(!is.na(e$dt_s) & e$dt_s == dt.clo[i])
+    if(length(j) == 0) j <- which.max(ifelse(is.na(e$n.closures), -1, e$n.closures))
+    e$prec[j[1]] }, numeric(1))
+  list(closure = s.clo, group = s.grp, dt = dt.clo)
+}

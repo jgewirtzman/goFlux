@@ -71,7 +71,12 @@
 #' emission measurements in rice through deployment of 'closed chambers' at
 #' nighttime. \emph{PLoS ONE}, 13(2), e0191352.
 #'
-#' @keywords internal
+#' @examples
+#' ft <- flux.term(V_L = 7.08, P_kPa = 101.3, A_cm2 = 4254, T_C = 26)
+#' MDF(p = 1.1, t = 540, flux.term = ft)              # one-sigma benchmark
+#' MDF(p = 1.1, t = 540, flux.term = ft, conf = 0.95) # z = 1.96
+#'
+#' @export
 #'
 MDF <- function(p, t, flux.term, conf = NULL) {
   z <- if (is.null(conf)) 1 else {
