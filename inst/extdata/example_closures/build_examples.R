@@ -1,7 +1,10 @@
 # =============================================================================
 # build_examples.R -- how the bundled example closures were pulled and anonymized
 #
-# NOT run at install time. Documents, reproducibly from the author's drive, how
+# NOT run at install time. Closure 11 (ebullition_overshoot) was added on
+# 2026-10-08 by building it alone (ONLY below) and appending it; some YMF
+# sources of closures 1-10 have since moved.
+# Documents, reproducibly from the author's drive, how
 # inst/extdata/example_closures/example_closures.csv, example_closures_aux.csv and
 # example_closures_diagnostics.csv were made. Each closure is the campaign's
 # own goFlux manID output: the full obs.win() segment (context rows flag = 0,
@@ -45,7 +48,8 @@ sel <- rbindlist(list(
   list("uptake_soil",             "soil",      "20200824_2-4-U_11",      "upland forest soil collar",        "summer 2020", "ABB/LGR UGGA (GLA131)", "soil collar chamber", "flux_after_tier1.csv (MDF95)"),
   list("high_flux_wetland_stem",  "bf_lgr3",   "Oct_22_84_FLM30_stem",   "mangrove tree stem, coastal wetland","wet season 2022 (October)", "ABB/LGR GLA131 (LGR3)", "rigid stem chamber", "CH4_best_flux_lgr3_results.csv (goFlux MDF)"),
   list("ebullition_floating",     "bf_ebull",  "LGR2_2022-10-23_CP40_P06","open water, floating chamber, ghost-forest mangrove site", "wet season 2022 (October)", "ABB/LGR GLA131", "floating chamber", "campaign ebullition outputs (no MDF)"),
-  list("emission_li7810_stem",    "santafe",   "SF2_DBH2_r1",             "tree stem, Santa Fe 2026", "spring 2026 (May)", "LI-COR LI-7810", "rigid stem chamber", "santafe_2026_fluxes_with_mdf.csv (CH4_MDF)")))
+  list("emission_li7810_stem",    "santafe",   "SF2_DBH2_r1",             "tree stem, Santa Fe 2026", "spring 2026 (May)", "LI-COR LI-7810", "rigid stem chamber", "santafe_2026_fluxes_with_mdf.csv (CH4_MDF)"),
+  list("ebullition_overshoot",    "bf_ebull",  "LGR2_2023-03-11_SRS6_P18","open water, floating chamber, mangrove site", "dry season 2023 (March)", "ABB/LGR GLA131", "floating chamber", "campaign ebullition outputs (no MDF)")))
 setnames(sel, c("key", "src", "orig", "campaign_type", "season_year", "analyzer", "chamber_family", "class_source"))
 
 # ---- readers: return the obs.win segment for one UniqueID in goFlux columns --
@@ -68,9 +72,15 @@ read_src <- list(
   santafe    = function(id) { e <- new.env(); load(file.path(SF, "RData/manID.RData"), envir = e); x <- e$manID[e$manID$UniqueID == id, ]; std(x) },
   bf_ebull   = function(id) {
     # trace as segmented by the campaign's detect_ebullition.R (clock offset applied, 20 s trimmed each end); no clicked window
-    tr <- readRDS(file.path(BF, "output/ebullition/all_traces.rds"))[[id]]$trace
-    w <- read.csv(file.path(BF, "output/data_products/soil_water_surface_fluxes_ORIGINAL.csv"))
-    tc <- mean(w$air_temp[w$plot == "CP40" & w$date == "2022-10-23" & w$surface_type == "water"], na.rm = TRUE)   # site-day mean
+    # (moved in blueflux-ground to _archive/superseded_output/ebullition_legacy/ after 2026-09-24; same file)
+    f <- file.path(BF, "output/ebullition/all_traces.rds")
+    if (!file.exists(f)) f <- file.path(BF, "_archive/superseded_output/ebullition_legacy/all_traces.rds")
+    tr <- readRDS(f)[[id]]$trace
+    fw <- file.path(BF, "output/data_products/soil_water_surface_fluxes_ORIGINAL.csv")
+    if (!file.exists(fw)) fw <- file.path(BF, "_archive/superseded_output/data_products/soil_water_surface_fluxes_ORIGINAL.csv")
+    w <- read.csv(fw)
+    pd <- strsplit(id, "_")[[1]]                                   # e.g. LGR2_2022-10-23_CP40_P06
+    tc <- mean(w$air_temp[w$plot == pd[3] & w$date == pd[2] & w$surface_type == "water"], na.rm = TRUE)   # site-day mean
     data.frame(UniqueID = id, POSIX.time = tr$datetime, CO2dry_ppm = tr$CO2_ppm, CH4dry_ppb = tr$CH4_ppm * 1000,
                H2O_ppm = if (all(is.na(tr$H2O_ppm))) 0 else tr$H2O_ppm, start.time = min(tr$datetime), obs.length = round(max(tr$elapsed_sec)),
                Area = 324.3, Vtot = 4.318, Tcham = round(tc, 2), Pcham = 101.325,          # goflux_reprocess_ebullition.R CHAMBER_PARAMS (LGR)
@@ -91,8 +101,12 @@ lookup <- function(src, id) switch(src,
 
 # ---- build ---------------------------------------------------------------------
 T0 <- as.POSIXct("2000-01-01 00:00:00", tz = "UTC")
+# ONLY: build these keys alone and append them to the existing files (the
+# synthetic day of each closure is its position in 'sel'). NULL rebuilds all.
+ONLY <- if (exists("ONLY")) ONLY else NULL
 data <- list(); aux <- list(); diag <- list()
 for (i in seq_len(nrow(sel))) {
+  if (!is.null(ONLY) && !sel$key[i] %in% ONLY) next
   s <- sel[i]; x <- read_src[[s$src]](s$orig)
   stopifnot(nrow(x) > 0)
   shift <- as.numeric(difftime(T0 + (i - 1) * 86400 + 3600, x$start.time[1], units = "secs"))   # synthetic calendar
@@ -122,7 +136,7 @@ for (i in seq_len(nrow(sel))) {
                           class = cls, class_source = s$class_source)
 }
 diag <- do.call(rbind, diag)
-diag$verdict <- c("valid, detected: the worked-example closure (1 Hz, CH4 r2 0.997)",
+verdicts <- c("valid, detected: the worked-example closure (1 Hz, CH4 r2 0.997)",
                   "valid, detected: clean mid-range upland emission, 5 s logging",
                   "valid, CH4 below detection: CO2 rises cleanly, CH4 flat",
                   "failed closure: CO2 not rising (slightly falling), CH4 below detection; the only such stem closure in the monthly-survey archive",
@@ -131,8 +145,18 @@ diag$verdict <- c("valid, detected: the worked-example closure (1 Hz, CH4 r2 0.9
                   "valid, detected uptake: strong clean soil CH4 uptake",
                   "valid, detected: large diffusive mangrove-stem emission (continuous 1 s timestamps, CH4 steps 3.2 x MAD). No Picarro G4301 stem closure of the campaign passes the continuity test (irregular 3-7 s logging, single-sample steps >= 11 x MAD), so that format is not represented",
                   "ebullition: one bubble burst (5 consecutive samples at 42-46 s, ~675 ppb) inside a sealed floating-chamber closure; no clicked window (campaign-segmented trace)",
-                  "valid, detected: clean LI-7810 stem emission, third analyzer format (continuous 1 s timestamps, CH4 steps 4.1 x MAD); Tcham is the campaign default (24 C) as no chamber temperature was logged")
-write.csv(do.call(rbind, data), file.path(OUT, "example_closures.csv"), row.names = FALSE)
-write.csv(do.call(rbind, aux),  file.path(OUT, "example_closures_aux.csv"), row.names = FALSE)
-write.csv(diag, file.path(OUT, "example_closures_diagnostics.csv"), row.names = FALSE)
+                  "valid, detected: clean LI-7810 stem emission, third analyzer format (continuous 1 s timestamps, CH4 steps 4.1 x MAD); Tcham is the campaign default (24 C) as no chamber temperature was logged",
+                  "ebullition with overshoot: one small bubble (settled step ~28 ppb at ~38 s) with a transient peak ~23 ppb above it that decays over ~4 s (find.bubbles keeps the re-equilibration term); campaign-segmented trace, no clicked window")
+diag$verdict <- verdicts[match(diag$key, sel$key)]
+out <- list(example_closures.csv = do.call(rbind, data), example_closures_aux.csv = do.call(rbind, aux),
+            example_closures_diagnostics.csv = diag)
+for (f in names(out)) {
+  if (is.null(ONLY)) { write.csv(out[[f]], file.path(OUT, f), row.names = FALSE); next }
+  # append as text, so that the existing rows stay byte-identical
+  old <- readLines(file.path(OUT, f))
+  drop <- Reduce(`|`, lapply(ONLY, function(k) startsWith(old, paste0('"', k, '"'))))
+  tc <- textConnection("new_lines", "w", local = TRUE)
+  write.csv(out[[f]], tc, row.names = FALSE); close(tc)
+  writeLines(c(old[!drop], new_lines[-1]), file.path(OUT, f))
+}
 options(width = 250); print(diag[, c("key", "season_year", "sampling_interval_s", "window_length_s", "n_flagged", "n_segment", "co2_slope_ppm_s", "co2_p", "ch4_flux_nmol_m2_s", "MDF95", "class")])

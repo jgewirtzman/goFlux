@@ -220,12 +220,18 @@
 #' \code{\link{goFlux}}
 #'
 #' @examples
-#' \dontrun{
-#' results <- goAquaFlux(
-#'   dataframe = chamber_data,
-#'   gastype = "CH4dry_ppb"
-#' )
-#' }
+#' # a floating-chamber incubation with one bubble (plain step)
+#' e1 <- example.closures("ebullition_floating")$data
+#' r1 <- goAquaFlux(e1, "CH4dry_ppb")
+#' r1$bubbles[, c("t.step", "magnitude", "overshoot", "tau")]
+#' r1$flux_summary[, c("flux_diffusive", "flux_ebullition", "flux_total")]
+#'
+#' # a bubble with a transient overshoot, too early for a pre-bubble window:
+#' # the de-ebulliated window gives a diffusive flux
+#' e2 <- example.closures("ebullition_overshoot")$data
+#' r2 <- goAquaFlux(e2, "CH4dry_ppb", diffusion.window = "deebulliated")
+#' r2$bubbles[, c("t.step", "magnitude", "overshoot", "tau")]
+#' r2$flux_summary[, c("diffusive_window", "flux_diffusive", "flux_ebullition")]
 #'
 #' @export
 #'

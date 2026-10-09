@@ -1,7 +1,7 @@
 # ported from fluxqc 0.2.4 tests/testthat/test-examples.R
 keys <- c("emission_stem_semirigid", "emission_upland_stem", "below_detection_stem", "failed_closure_stem",
           "ambiguous_stem", "uptake_stem", "uptake_soil", "high_flux_wetland_stem", "ebullition_floating",
-          "emission_li7810_stem")
+          "emission_li7810_stem", "ebullition_overshoot")
 
 test_that("example closures load, anonymized, with real geometry", {
   ex <- example.closures()
@@ -30,7 +30,7 @@ test_that("example closures load, anonymized, with real geometry", {
     dt <- as.numeric(diff(w$POSIX.time), units = "secs"); dc <- abs(diff(w$CH4dry_ppb))
     c(gap = max(dt) / median(dt), step = max(dc) / mad(dc)) }))
   expect_true(all(cont[, "gap"] <= 2))
-  expect_true(all(cont[keys != "ebullition_floating", "step"] <= 6))
+  expect_true(all(cont[!keys %in% c("ebullition_floating", "ebullition_overshoot"), "step"] <= 6))
   expect_gt(cont["ebullition_floating", "step"], 20)
   re <- example.closures("emission_stem_semirigid", dead.band = 60)$data
   expect_equal(sum(re$flag), sum(re$t_s >= 60))
@@ -43,4 +43,18 @@ test_that("ebullition_floating carries one real bubble (goAquaFlux)", {
   invisible(capture.output(r <- suppressWarnings(goAquaFlux(e, "CH4dry_ppb"))))
   expect_equal(nrow(r$bubbles), 1L)
   expect_gt(r$flux_summary$flux_ebullition, 15)
+  expect_equal(r$bubbles$overshoot, 0)                       # plain step retained
+})
+
+test_that("ebullition_overshoot keeps the re-equilibration term", {
+  e <- example.closures("ebullition_overshoot")$data
+  invisible(capture.output(r <- suppressWarnings(goAquaFlux(e, "CH4dry_ppb"))))
+  expect_equal(nrow(r$bubbles), 1L)
+  expect_gt(r$bubbles$overshoot, 10)
+  expect_true(is.finite(r$bubbles$tau))
+  expect_true(is.na(r$flux_summary$flux_diffusive))          # too few pre-bubble points
+  invisible(capture.output(d <- suppressWarnings(goAquaFlux(e, "CH4dry_ppb",
+                                                             diffusion.window = "deebulliated"))))
+  expect_true(is.finite(d$flux_summary$flux_diffusive))
+  expect_equal(d$flux_summary$diffusive_window, "deebulliated")
 })

@@ -1,16 +1,17 @@
 #' Example chamber closures with real chamber geometry
 #'
-#' Ten real, anonymized chamber closures from two analyzer families (ABB/LGR
+#' Eleven real, anonymized chamber closures from two analyzer families (ABB/LGR
 #' UGGA/GLA131 and LI-COR LI-7810), returned in the format of
 #' \code{\link[goFlux]{click.peak2}} output with an auxfile carrying the real
 #' geometry of each closure. Each closure is the campaign's own observation
 #' window (rows around the window with \code{flag = 0}, the operator-selected
 #' window with \code{flag = 1}; the ebullition closure is the whole
 #' segmented incubation). They illustrate detection classes and failure modes
-#' (clean emission, uptake, below MDF, failed seal, a bubble).
+#' (clean emission, uptake, below MDF, failed seal, bubbles with and without
+#' a transient overshoot).
 #'
 #' @param which character vector; keys of the closures to return (see
-#'              Details). Default \code{NULL}: all ten.
+#'              Details). Default \code{NULL}: all eleven.
 #' @param dead.band numerical; \code{NULL} (default) keeps the shipped
 #'                  \code{flag} column (the selected window). A number
 #'                  re-flags each closure from \code{start.time + dead.band}
@@ -44,6 +45,12 @@
 #'   \item{\code{ebullition_floating}}{one bubble (5 samples at 42-46 s,
 #'     about 675 ppb) in a floating-chamber incubation; GLA131, 1 s. For
 #'     \code{\link[goFlux]{goAquaFlux}}.}
+#'   \item{\code{ebullition_overshoot}}{one small bubble (settled step about
+#'     28 ppb at 38 s) whose concentration first peaks about 23 ppb above the
+#'     settled level and decays within a few seconds, so that
+#'     \code{find.bubbles} keeps its re-equilibration (overshoot) term; only
+#'     28 observations precede it, too few for the default pre-bubble
+#'     diffusive window; GLA131, 1 s. For \code{\link[goFlux]{goAquaFlux}}.}
 #'   \item{\code{emission_li7810_stem}}{clean emission, second analyzer
 #'     format; tree stem, LI-7810, 1 s (\code{Tcham} is the campaign
 #'     default).}
@@ -62,7 +69,8 @@
 #' \strong{Data sources and citation.} Upland stem and soil closures:
 #' Yale-Myers Forest (CT, USA) chamber-flux record 2020-2021 (J. Gewirtzman
 #' and colleagues, Yale School of the Environment). Wetland closures
-#' (\code{high_flux_wetland_stem}, \code{ebullition_floating}): ground
+#' (\code{high_flux_wetland_stem}, \code{ebullition_floating},
+#' \code{ebullition_overshoot}): ground
 #' component of the NASA Carbon Monitoring System BlueFlux campaign, south
 #' Florida (Poulter et al. 2023). \code{emission_li7810_stem}: Santa Fe 2026
 #' campaign (J. Gewirtzman). Released with the permission of the data owners.

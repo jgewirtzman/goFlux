@@ -256,9 +256,12 @@
 #'     then a direct indication that the window was misidentified. For output
 #'     without a \code{model} column (earlier versions), both the LM (dark
 #'     blue) and HM (sky blue) fits are drawn.}
-#'   \item{Bubble fits}{For each event whose magnitude is significant
-#'     (\code{magnitude / SE >= bubble.snr}), the step + re-equilibration model
-#'     fitted by \code{find.bubbles}, in vermillion. It is drawn from the start
+#'   \item{Bubble models}{For each event whose magnitude is significant
+#'     (\code{magnitude / SE >= bubble.snr}), the model fitted by
+#'     \code{find.bubbles}, in vermillion: a straight pre-bubble trend, a
+#'     step, and, when \code{find.bubbles} retained it (by AIC), a transient
+#'     overshoot that decays exponentially. The legend says which:
+#'     \emph{bubble model (step)} or \emph{bubble model (step + overshoot)}. It is drawn from the start
 #'     of the event band to the end of that event's fit window: pre-bubble
 #'     lead-in, jump to the transient peak and exponential re-equilibration.
 #'     When a re-equilibration term was retained, the settled post-bubble level
@@ -276,6 +279,14 @@
 #'     \code{fit.end} returned by \code{find.bubbles}; if \code{bubbles}
 #'     lacks them (output of an earlier version), the fits are skipped with a
 #'     warning and the rest of the figure is unaffected.}
+#'   \item{De-ebulliated fit}{With \code{diffusion.window = "deebulliated"} in
+#'     \code{\link{goAquaFlux}}, the measured series is drawn in grey
+#'     (\emph{measured}), the series with the bubble steps subtracted in sky
+#'     blue (\emph{measured minus bubble steps}; the diffusive fit is made on
+#'     it), the samples of each bubble's rise, excluded from that fit, as
+#'     crosses (\emph{excluded (bubble rise)}), and the step time of each
+#'     bubble as a dashed vertical line. The diffusive-window band is not
+#'     drawn, since the window is the whole incubation.}
 #'   \item{Flux estimates}{Reported in the plot subtitle, with their unit in the
 #'     caption. They are placed outside the panel so that they cannot overlap
 #'     the data for any incubation.}
@@ -364,6 +375,10 @@
 #'   \code{\link[goFlux]{flux.plot}} for the diffusion-only equivalent.
 #'
 #' @examples
+#' e <- example.closures("ebullition_overshoot")$data
+#' res <- goAquaFlux(e, "CH4dry_ppb", diffusion.window = "deebulliated")
+#' flux.plot.aqua(res, e, "CH4dry_ppb")[[1]]
+#'
 #' \dontrun{
 #' res <- goAquaFlux(mydata, gastype = "CH4dry_ppb", return_df = TRUE)
 #'
@@ -391,7 +406,7 @@
 #' }
 #'
 #' @importFrom ggplot2 ggplot aes geom_point geom_rect geom_segment geom_line
-#' @importFrom ggplot2 geom_path
+#' @importFrom ggplot2 geom_path geom_vline
 #' @importFrom ggplot2 scale_colour_manual scale_fill_manual scale_shape_manual
 #' @importFrom ggplot2 scale_alpha_manual scale_x_continuous xlab ylab labs
 #' @importFrom ggplot2 coord_cartesian theme_bw theme element_text element_blank
@@ -596,7 +611,7 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
 
   # Silence R CMD check notes on columns referenced by non-standard evaluation.
   UniqueID <- Etime <- flag <- flag_lab <- HM_mod <- start <- end <- NULL
-  x <- y <- event <- xend <- yend <- NULL
+  x <- y <- event <- xend <- yend <- t.step <- NULL
 
   # ---- One figure per incubation --------------------------------------------
 
@@ -701,7 +716,8 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     ## Fitted model of each significant bubbling event. The SE guard avoids a
     ## division by zero; an event with a missing SE has no finite SNR and is
     ## only drawn when bubble.snr = NULL.
-    bfit_df <- bset_df <- NULL
+    bfit_df <- bset_df <- step_df <- NULL
+    bubble_lab <- "bubble model (step)"
     if (draw_bubble_fits && can.plot.bubbles && fits_same_gas && ebull_active) {
       bb <- bubbles_f
       bb$event <- seq_len(nrow(bb))
@@ -711,6 +727,10 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
       if (!is.null(bubble.snr)) keep <- keep & is.finite(snr) & snr >= bubble.snr
       if (any(keep)) {
         curves  <- lapply(which(keep), function(j) .bubble_curve(bb[j, ]))
+        any_reeq <- any(is.finite(bb$overshoot[keep]) & bb$overshoot[keep] != 0 &
+                        is.finite(bb$tau[keep]))
+        bubble_lab <- if (any_reeq) "bubble model (step + overshoot)" else "bubble model (step)"
+        step_df <- data.frame(t.step = bb$t.step[keep])
         bfit_df <- do.call(rbind, lapply(curves, `[[`, "fit"))
         bset_df <- do.call(rbind, lapply(curves, `[[`, "settled"))  # NULL if none
       }
@@ -758,6 +778,9 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     # readable without reference to the documentation. Unused levels are dropped
     # so that incubations with no discarded records do not advertise an empty
     # category.
+    ## With a de-ebulliated trace, the raw observations are drawn in grey as
+    ## "measured" and the trace the diffusive fit was made on stands out.
+    is_deeb <- !is.null(deb_f)
     df_all$flag_lab <- ifelse(df_all$flag == 1, "retained", "discarded")
 
     ## For a gas other than the bubble gas, no ebullitive flux is estimated: when
@@ -777,6 +800,7 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     ## Point colour per category. The two colours are drawn as separate layers,
     ## since the colour scale is used by the model fits; the legend keys are
     ## coloured to match.
+    if (is_deeb) col_points <- col_outside
     key_colours <- c("retained" = col_points,
                      "outside diffusive window" = col_outside,
                      "discarded" = col_points)[levels(df_all$flag_lab)]
@@ -788,8 +812,9 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     plot <- ggplot(df_all, aes(x = Etime))
 
     ## Diffusive window, as a full-height band.
+    ## Not drawn for a de-ebulliated fit, whose window is the whole incubation.
     if (!is.null(plot.display) && "diffusive.window" %in% plot.display &&
-        nrow(df_diff) > 0) {
+        nrow(df_diff) > 0 && !is_deeb) {
       rect_df <- data.frame(xmin = 0,
                             xmax = max(df_diff$Etime, na.rm = TRUE),
                             ymin = -Inf, ymax = Inf)
@@ -830,16 +855,23 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     ## (flag == 0) as grey crosses. The LM/HM fits below were made on it.
     if (!is.null(deb_f)) {
       plot <- plot +
-        geom_point(data = deb_f[deb_f$flag != 1, ], aes(y = .data[[gastype]]),
-                   colour = "grey55", shape = 4, size = 0.9) +
+        geom_point(data = deb_f[deb_f$flag != 1, ],
+                   aes(y = .data[[gastype]], colour = "excluded (bubble rise)"),
+                   shape = 4, size = 1) +
         geom_point(data = deb_f[deb_f$flag == 1, ],
-                   aes(y = .data[[gastype]], colour = "de-ebulliated"), size = 0.5)
+                   aes(y = .data[[gastype]], colour = "measured minus bubble steps"),
+                   size = 0.6)
     }
 
     ## Bubble fits, drawn below the diffusive fit so that it stays visible
     ## where they meet. geom_path (not geom_line) keeps the row order, so the
     ## two points sharing t_s draw the jump as a vertical segment. The settled
     ## level is dashed and kept out of the legend: it belongs to the fit.
+    if (is_deeb && !is.null(step_df)) {
+      plot <- plot +
+        geom_vline(data = step_df, aes(xintercept = t.step), colour = col_ebullitive,
+                   linetype = "dashed", linewidth = 0.3)
+    }
     if (!is.null(bset_df)) {
       plot <- plot +
         geom_path(data = bset_df, aes(x = x, y = y, group = event),
@@ -849,7 +881,7 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
     if (!is.null(bfit_df)) {
       plot <- plot +
         geom_path(data = bfit_df,
-                  aes(x = x, y = y, group = event, colour = "bubble fit"),
+                  aes(x = x, y = y, group = event, colour = bubble_lab),
                   linewidth = 0.8, inherit.aes = FALSE)
     }
 
@@ -921,18 +953,22 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
                          collapse = "\n")
 
     plot +
-      scale_shape_manual(NULL, values = c("retained" = 16,
+      scale_shape_manual(NULL, labels = function(b) ifelse(is_deeb & b == "retained", "measured", b),
+                         values = c("retained" = 16,
                                           "outside diffusive window" = 16,
                                           "discarded" = 1)) +
-      scale_alpha_manual(NULL, values = c("retained" = 0.9,
+      scale_alpha_manual(NULL, labels = function(b) ifelse(is_deeb & b == "retained", "measured", b),
+                         values = c("retained" = 0.9,
                                           "outside diffusive window" = 0.9,
                                           "discarded" = 0.45)) +
       scale_colour_manual(NULL, values = c("diffusive fit (LM)" = col_diffusive,
                                            "diffusive fit (HM)" = col_diffusive,
                                            "LM fit"             = col_diffusive,
                                            "HM fit"             = col_hm,
-                                           "bubble fit"         = col_ebullitive,
-                                           "de-ebulliated"      = "steelblue4")) +
+                                           "bubble model (step)" = col_ebullitive,
+                                           "bubble model (step + overshoot)" = col_ebullitive,
+                                           "measured minus bubble steps" = col_hm,
+                                           "excluded (bubble rise)" = "grey40")) +
       # The fill labels are set by function so that the ebullition key can name
       # the gas the events were detected on, without changing the fill values.
       scale_fill_manual(NULL, values = c("diffusive window"  = col_diffusive,
@@ -964,7 +1000,9 @@ flux.plot.aqua <- function(flux.results.ls, dataframe, gastype, shoulder = 30,
             panel.grid.minor = element_blank(),
             panel.grid.major = element_line(linewidth = 0.25, colour = "grey90"),
             legend.position  = "bottom",
-            legend.box       = "horizontal",
+            # several legends side by side overflow the panel with a
+            # de-ebulliated fit: stack them instead
+            legend.box       = if (is_deeb) "vertical" else "horizontal",
             legend.key.size  = unit(0.8, "lines"),
             legend.margin    = margin(t = -4))
   })

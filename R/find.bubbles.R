@@ -209,21 +209,17 @@
 #' slope is shared by the pre- and post-bubble segments.
 #'
 #' @examples
-#' \dontrun{
-#' # Default: step + re-equilibration model (settled step)
-#' bubbles <- find.bubbles(df = incubation_data,
-#'                         bubble_source = "CH4dry_ppb",
-#'                         window.size = 15,
-#'                         method = "diff")
+#' e <- example.closures("ebullition_overshoot")$data
+#' # Default: step + re-equilibration model; the overshoot term is kept here
+#' goFlux:::find.bubbles(e, "CH4dry_ppb")[, c("t.step", "magnitude", "overshoot", "tau")]
 #'
 #' # Plain step regression, as in earlier versions
-#' bubbles_step <- find.bubbles(df = incubation_data,
-#'                              bubble_source = "CH4dry_ppb",
-#'                              window.size = 15,
-#'                              method = "diff",
-#'                              magnitude.model = "step",
-#'                              exclude.ramp = FALSE)
-#' }
+#' goFlux:::find.bubbles(e, "CH4dry_ppb", magnitude.model = "step",
+#'                       exclude.ramp = FALSE)[, c("t.step", "magnitude")]
+#'
+#' # one bubble for which the plain step is retained (overshoot = 0)
+#' e1 <- example.closures("ebullition_floating")$data
+#' goFlux:::find.bubbles(e1, "CH4dry_ppb")[, c("t.step", "magnitude", "overshoot")]
 #'
 #' @importFrom zoo rollapply
 #' @importFrom stats AIC approx coef lm mad median optimize quantile residuals sd var

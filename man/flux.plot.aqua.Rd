@@ -124,9 +124,12 @@ Each figure is composed of the following elements.
     then a direct indication that the window was misidentified. For output
     without a \code{model} column (earlier versions), both the LM (dark
     blue) and HM (sky blue) fits are drawn.}
-  \item{Bubble fits}{For each event whose magnitude is significant
-    (\code{magnitude / SE >= bubble.snr}), the step + re-equilibration model
-    fitted by \code{find.bubbles}, in vermillion. It is drawn from the start
+  \item{Bubble models}{For each event whose magnitude is significant
+    (\code{magnitude / SE >= bubble.snr}), the model fitted by
+    \code{find.bubbles}, in vermillion: a straight pre-bubble trend, a
+    step, and, when \code{find.bubbles} retained it (by AIC), a transient
+    overshoot that decays exponentially. The legend says which:
+    \emph{bubble model (step)} or \emph{bubble model (step + overshoot)}. It is drawn from the start
     of the event band to the end of that event's fit window: pre-bubble
     lead-in, jump to the transient peak and exponential re-equilibration.
     When a re-equilibration term was retained, the settled post-bubble level
@@ -144,6 +147,14 @@ Each figure is composed of the following elements.
     \code{fit.end} returned by \code{find.bubbles}; if \code{bubbles}
     lacks them (output of an earlier version), the fits are skipped with a
     warning and the rest of the figure is unaffected.}
+  \item{De-ebulliated fit}{With \code{diffusion.window = "deebulliated"} in
+    \code{\link{goAquaFlux}}, the measured series is drawn in grey
+    (\emph{measured}), the series with the bubble steps subtracted in sky
+    blue (\emph{measured minus bubble steps}; the diffusive fit is made on
+    it), the samples of each bubble's rise, excluded from that fit, as
+    crosses (\emph{excluded (bubble rise)}), and the step time of each
+    bubble as a dashed vertical line. The diffusive-window band is not
+    drawn, since the window is the whole incubation.}
   \item{Flux estimates}{Reported in the plot subtitle, with their unit in the
     caption. They are placed outside the panel so that they cannot overlap
     the data for any incubation.}
@@ -174,6 +185,10 @@ Colours follow the Okabe-Ito palette, which remains distinguishable under the
 common forms of colour vision deficiency and in greyscale print.
 }
 \examples{
+e <- example.closures("ebullition_overshoot")$data
+res <- goAquaFlux(e, "CH4dry_ppb", diffusion.window = "deebulliated")
+flux.plot.aqua(res, e, "CH4dry_ppb")[[1]]
+
 \dontrun{
 res <- goAquaFlux(mydata, gastype = "CH4dry_ppb", return_df = TRUE)
 

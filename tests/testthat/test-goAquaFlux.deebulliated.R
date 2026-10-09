@@ -85,5 +85,5 @@ test_that("deebulliated diffusive flux carries SE and n, short windows do not fa
   p <- suppressWarnings(flux.plot.aqua(deb, d, "CH4dry_ppb"))
   expect_s3_class(p[[1]], "ggplot")
   expect_true(any(vapply(p[[1]]$layers, function(l) "colour" %in% names(l$mapping) &&
-                           identical(rlang::eval_tidy(l$mapping$colour), "de-ebulliated"), logical(1))))
+                           identical(rlang::eval_tidy(l$mapping$colour), "measured minus bubble steps"), logical(1))))
 })
