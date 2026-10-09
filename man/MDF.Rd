@@ -14,26 +14,23 @@ MDF(p, t, flux.term, conf = NULL)
 \item{flux.term}{numerical; flux term calculated with the function
 \code{\link[goFlux]{flux.term}}}
 
-\item{conf}{numerical; optional two-sided confidence level (e.g. 0.95).
-When given, the precision is scaled by the standard-normal
-quantile \eqn{z = qnorm(1 - (1 - conf)/2)} (1.96 for 0.95, the
-2-sigma criterion; 1.645 for 0.90), i.e.
-\eqn{MDF = z \cdot p / t \cdot flux.term}. This generalises the
-fixed multiplier of Wassmann et al. (2018), who used k = 3
-("99 \%") on the standard deviation of replicate ambient-air
-analyses; for the alpha = 0.05 detection limit see Parkin,
-Venterea and Hargreaves (2012). Default \code{NULL} keeps
-\eqn{z = 1} (unchanged behaviour).}
+\item{conf}{numerical; optional label of the multiplier z applied to the
+precision, the standard-normal quantile
+\eqn{z = qnorm(1 - (1 - conf)/2)} (1.96 for 0.95, 1.645 for
+0.90). It is the Gaussian quantile for a single concentration
+difference: z = 1.96 is a benchmark multiplier, not a
+calibrated 95 \% test of a fitted flux (see Details). Default
+\code{NULL}: z = 1 (unchanged behaviour).}
 }
 \value{
 a numerical value
 }
 \description{
 The minimal detectable flux based on instrument precision and the
-measurement time: \eqn{MDF = p / t \cdot flux.term} (Christiansen et al.
-2015, section 2.5, who define MDF as analytic precision divided by the
-enclosure time). Optionally scaled to a stated confidence level with
-\code{conf}.
+measurement time: \eqn{MDF = z \cdot p / t \cdot flux.term}, the
+precision/time form of Christiansen et al. (2015, section 2.5, who define
+MDF as analytic precision divided by the enclosure time, i.e. z = 1).
+\code{conf} sets the multiplier z.
 }
 \details{
 \strong{Measurement time \code{t}.} \code{\link[goFlux]{goFlux}} passes
@@ -48,14 +45,35 @@ coarser intervals. The same \code{t} enters the kappa-max bound of the HM
 model (\code{\link[goFlux]{k.max}}).
 
 \strong{Precision \code{p}.} With a datasheet or empirical precision
-expressed as one standard deviation, the default MDF is a one-sigma limit.
-Note that the "SD x 3 x t99" of Christiansen et al. (2015) is a
-gas-chromatograph method quantification limit from replicate standards
-(Corley 2003), not a per-closure MDF; it should not be read as a
-\eqn{3 \cdot t} variant of this function. An empirical precision can be
-estimated from the data with \code{\link[goFlux]{empirical.prec}}; a
-datasheet precision quoted at 1 s can be rescaled to the logging interval
-with \code{\link[goFlux]{spec.at.interval}}.
+expressed as one standard deviation, the default MDF (z = 1) is a one-sigma
+benchmark. An empirical precision can be estimated from the data with
+\code{\link[goFlux]{empirical.prec}}; a datasheet precision quoted at 1 s
+can be compared with a record logged at a coarser interval with
+\code{\link[goFlux]{spec.at.interval}}, if each logged value is an average.
+The precision given to \code{\link[goFlux]{goFlux}} also sets kappa-max
+(\code{\link[goFlux]{k.max}}), and so the curvature allowed to the HM model
+and the model choice in \code{\link[goFlux]{best.flux}}: changing the
+precision can change the fluxes, not only the MDF.
+
+\strong{What the MDF is.} The MDF converts a chosen concentration change
+(z times the precision) over the closure into a flux. It is a benchmark:
+it does not depend on the number of observations, and a flux below it
+cannot be distinguished from zero by this benchmark, which does not make
+it zero or noise (keep it signed). Regression-based detection (a slope
+p-value, or a confidence interval for the same linear model) answers a
+different question: it gains precision with the number of observations and
+assumes independent residuals (Cowan et al. 2025). Neither covers
+instrument drift or leaks, which look like a flux (see
+\code{\link[goFlux]{qc.flags}}).
+
+\strong{Attribution.} The precision/time form is that of Christiansen et
+al. (2015) with z = 1; the "SD x 3 x t99" of that paper is a
+gas-chromatograph quantification limit from replicate standards (Corley
+2003), not a per-closure multiplier. Wassmann et al. (2018) used an
+empirical, instrument-level precision (the SD of replicate ambient-air
+analyses) times a multiplier of 3. Parkin, Venterea and Hargreaves (2012)
+derived detection limits by simulation; their coefficients are specific to
+their sampling designs.
 }
 \examples{
 ft <- flux.term(V_L = 7.08, P_kPa = 101.3, A_cm2 = 4254, T_C = 26)
@@ -80,6 +98,10 @@ Residue Analytical Methods for Agrochemicals}. Wiley.
 Parkin, T. B., Venterea, R. T., & Hargreaves, S. K. (2012). Calculating the
 detection limits of chamber-based soil greenhouse gas flux measurements.
 \emph{Journal of Environmental Quality}, 41, 705-715.
+
+Cowan, N., Levy, P., Tigli, M., Toteva, G., & Drewer, J. (2025).
+Characterisation of analytical uncertainty in chamber soil flux
+measurements. \emph{European Journal of Soil Science}, 76(2), e70104.
 
 Wassmann, R., Alberto, M. C., Tirol-Padre, A., Hoang, N. T., Romasanta, R.,
 Centeno, C. A., & Sander, B. O. (2018). Increasing sensitivity of methane

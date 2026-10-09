@@ -108,16 +108,19 @@
 #' below the detection limit.
 #'
 #' \strong{Note on p-values.} The \emph{p-value} criterion tests the slope of
-#' the linear model with ordinary least-squares standard errors, which assume
-#' independent residuals. On high-frequency records (1 Hz and faster) the
-#' residuals of a chamber trace are strongly autocorrelated, so the test is
-#' anticonservative: it declares slopes significant far more often than the
-#' nominal level, and the smaller the p-value the less it means. Treat it as a
-#' coarse validity filter (a flat trace with \code{LM.p.val} well above
-#' \code{p.val} is not a flux), not as a detection criterion. For detection use
-#' the minimal detectable flux with an empirical precision
-#' (\code{\link[goFlux]{empirical.prec}}) and a stated confidence level
-#' (\code{conf}).
+#' the linear model with ordinary least-squares standard errors. It answers a
+#' different question from the \code{\link[goFlux]{MDF}}: whether the slope
+#' of this linear fit differs from zero, given its residuals. For the same
+#' linear model, \code{LM.p.val < 0.05} is equivalent to a 95 \% confidence
+#' interval of the slope that excludes zero. The test gains precision with the
+#' number of observations and assumes independent, constant-variance
+#' residuals; on high-frequency records the residuals are often
+#' autocorrelated, and then the ordinary standard error is too small. The
+#' MDF, by contrast, is a benchmark on a single concentration difference that
+#' does not depend on the number of observations. The two can disagree
+#' without either being wrong; report both, with the estimate and its
+#' interval (Cowan et al. 2025). A linear-model p-value is not the test of a
+#' Hutchinson-Mosier (HM) estimate.
 #'
 #' \code{warn.length} is the limit below which the chamber closure time is
 #' flagged for being too short (\code{nb.obs < warn.length}). Portable
@@ -134,6 +137,11 @@
 #' @references Hutchinson and Mosier (1981). Improved soil cover method for
 #' field measurement of nitrous oxide fluxes.
 #' \emph{Soil Science Society of America Journal}, 45(2), 311-316. [@hutchinson1981]
+#'
+#' @references Cowan, N., Levy, P., Tigli, M., Toteva, G., & Drewer, J. (2025).
+#' Characterisation of analytical uncertainty in chamber soil flux
+#' measurements. \emph{European Journal of Soil Science}, 76(2), e70104.
+#' \doi{10.1111/ejss.70104}
 #'
 #' @returns A data.frame identical to the input \code{flux.result} (output from
 #'          goFlux) with the additional columns \code{HM.diagnose},

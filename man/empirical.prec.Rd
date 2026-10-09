@@ -84,19 +84,33 @@ median of the per-closure values.
 (\code{UniqueID}) the rows with \code{flag == 1} are put in time order and
 the precision is
 \deqn{\sigma_i = MAD(x_{k+1} - 2 x_k + x_{k-1}) / \sqrt{6},}{sigma_i = MAD(x[k+1] - 2 x[k] + x[k-1]) / sqrt(6),}
-where MAD is the normal-consistent median absolute deviation about the
-median (\code{stats::mad}, constant 1.4826). A straight line, i.e. the flux,
-cancels exactly in a second difference, and slow curvature leaves only a
-term of order curvature x \eqn{\Delta t^2}; white noise of standard
-deviation \eqn{\sigma} gives \eqn{Var = 6 \sigma^2}. This is the
-one-sample Hadamard deviation, the drift-insensitive counterpart of the
-Allan deviation (Riley 2008). A closure needs at least 6 second differences;
+where MAD is the median absolute deviation about the median scaled by
+1.4826 (\code{stats::mad}, whose default constant already applies it: do
+not multiply twice). 1.4826 is the Gaussian consistency factor, which makes
+the MAD estimate a standard deviation for normal errors; it is not a
+confidence multiplier. \eqn{\sqrt{6}}{sqrt(6)} comes from
+\eqn{1^2 + 2^2 + 1^2}{1 + 4 + 1}: independent, equal-variance errors of
+standard deviation \eqn{\sigma} give a second difference of variance
+\eqn{6 \sigma^2}. A straight line, i.e. the flux, cancels exactly in a
+second difference, and slow curvature leaves only a term of order
+curvature x \eqn{\Delta t^2}. The estimator is a robust, median-based form
+of the one-sample Hadamard deviation (Riley 2008), not the (mean-square)
+Hadamard statistic itself. A closure needs at least 6 second differences;
 otherwise its \eqn{\sigma_i} is \code{NA}. The precision of a group
 (\code{by}) is the \emph{median} of \eqn{\sigma_i} over its closures, so that
 a minority of very large, curved or bubbly closures cannot set the group
 value.
 
-\strong{Why not the whole-record first-difference MAD.} The superseded
+\strong{Why not the alternatives.} On simulated field days and real
+records of several analyzers, whole-record first differences inflated the
+precision 1.2-2.3x (high or variable fluxes, low-noise analyzers, 10 s
+logging); whole-record second differences 1.3-1.4x at 10 s; first
+differences centred per closure 1.3x with curvature at 10 s; residuals of a
+quadratic fit 2x with ebullition; the minimum over rolling windows is
+biased low. \code{"allan"} and \code{"mad_diff1"} are kept as documented
+comparison methods only.
+
+\strong{The whole-record first-difference MAD.} The superseded
 \code{method = "mad_diff1"} pools the first differences of a whole record
 and centres them on a single median. A first difference contains the
 closure's slope x \eqn{\Delta t}, and closures differ in slope, so the
@@ -125,7 +139,8 @@ and intervals seen fewer than 3 times, are dropped).
 \strong{Checks} (returned as columns; \code{warn = TRUE} also warns):
 \describe{
   \item{\code{ac1}}{lag-1 autocorrelation of the second differences
-    (median over closures). For white noise it is -2/3. Above -0.5 the noise
+    (median over closures). For white noise it is -2/3; real LGR and
+    LI-7810 records give -0.64 to -0.71. Above -0.5 the noise
     is red (random-walk or drift-dominated): neighbouring samples are not
     independent, the second differences understate the noise that matters
     over a closure, and an Allan plot is needed.}
@@ -146,31 +161,48 @@ and intervals seen fewer than 3 times, are dropped).
     differences, or the noise is not white; below 0.8 (warned) points at
     alternate-row or quantized data.}
 }
+Passing the checks does not prove that the errors are independent at the
+time scale of a closure, nor that there is no drift.
 
 \strong{Drift is a separate problem.} Any difference-based precision,
 this one included, is blind to instrument drift and to slow leaks: both
 change the concentration smoothly over a closure and so look like a flux,
-not like noise. Bound them with periodic blank closures on an inert surface
+not like noise. A straight-line drift cancels from the precision exactly as
+the flux does, so the precision says nothing about drift. Bound them with periodic blank closures on an inert surface
 (a sealed chamber on a plate or foil), whose apparent flux is the drift or
-leak floor; the trend of the ambient record before and after closures can
-flag an unstable analyzer but cannot measure drift inside the chamber.
+leak floor, and reference, zero or span gases for the stability of the
+analyzer. The ambient record before and after closures mostly reflects real
+ambient variability: it can flag an unstable analyzer but cannot measure
+drift inside the chamber, and should not be subtracted.
 
-\strong{Datasheet comparison.} Manufacturers quote precision at 1 s. A record
-logged every \eqn{\Delta t} seconds averages white noise down by
-\eqn{\sqrt{\Delta t}}{sqrt(dt)}, so before comparing the \code{prec} of a
-5 s or 10 s record with the datasheet, divide the datasheet value by
+\strong{Datasheet comparison.} Manufacturers quote precision at 1 s. If
+each value of a record logged every \eqn{\Delta t} seconds is the average
+of the readings over that interval, white noise is averaged down by
+\eqn{\sqrt{\Delta t}}{sqrt(dt)}, and the fair reference for the
+\code{prec} of a 5 s or 10 s record is the datasheet value divided by
 \eqn{\sqrt{\Delta t}}{sqrt(dt)} (\code{\link[goFlux]{spec.at.interval}};
-\code{dt_s} is returned for this). Otherwise an analyzer can appear to beat
-its datasheet when it is several times worse. The rescaling assumes white
-noise and fails beyond the analyzer's Allan minimum.
+\code{dt_s} is returned for this). This holds only if the logged values are
+averages: logging every 5 s does not by itself mean averaging over 5 s, and
+a snapshot every 5 s gains nothing. Check the acquisition settings; e.g.
+the raw files of the ABB/LGR GLA131 report a within-interval standard
+deviation per row (\code{[CH4]_ppm_sd}), non-zero when the row is an
+average and zero at 1 Hz. The rescaling also assumes white noise and fails
+beyond the analyzer's Allan minimum. The empirical precision at the
+recorded interval needs no rescaling.
 
 \strong{Use in the MDF.} Pass the result to the \code{prec} argument of the
 import functions (e.g. \code{\link[goFlux]{import.LI7810}}) or write it into
 the \code{*_prec} columns of the data frame before
 \code{\link[goFlux]{goFlux}}: the \code{prec} column of the output and
 \code{\link[goFlux]{MDF}} then use it, MDF = z x prec / t x flux.term with
-\code{t} in seconds. See \code{\link[goFlux]{MDF}} for the confidence level
-(\code{conf}).
+\code{t} the closure duration in seconds
+(\code{\link[goFlux]{closure.time}}); see \code{\link[goFlux]{MDF}} for
+the multiplier (\code{conf}), or classify the fluxes with
+\code{\link[goFlux]{flux.class}}. Estimate one group per analyzer x field
+day x logging interval x gas (\code{by}; logging intervals are separated
+automatically). The precision given to \code{goFlux} also sets kappa-max,
+and so the HM curvature bound and the model choice: a different precision
+can change the fluxes, not only the MDF.
 }
 \examples{
 data(manID.UGGA)

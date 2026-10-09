@@ -43,7 +43,11 @@ measured, set to \code{H2O_col = NULL}.}
 \item{prec}{numerical value; precision of the instruments. Units must be the
 same as \code{gastype}. With the default \code{prec = NULL},
 instrument precision for each gas must be provided in
-\code{dataframe}.}
+\code{dataframe}. The precision sets the \code{MDF} column and
+also kappa-max, and so the curvature allowed to the HM model:
+changing it can change \code{HM.flux}. See
+\code{\link[goFlux]{empirical.prec}} to estimate it from the
+data.}
 
 \item{Area}{numerical value; area of the soil surface inside the chamber
 \ifelse{html}{\out{(cm<sup>2</sup>)}}{\eqn{(cm^2)}{ASCII}}.

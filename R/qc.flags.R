@@ -91,8 +91,10 @@
 #' smoothly over a closure and look like a flux. None of these flags measures
 #' them. Make periodic blank closures on an inert surface (a sealed chamber on
 #' a plate or foil): their apparent flux is the drift or leak floor to compare
-#' fluxes with. The ambient-shoulder trend (\code{qc.ambient.drift}) can flag
-#' an unstable analyzer but cannot measure drift inside the chamber.
+#' fluxes with (\code{blank.slope}); check the analyzer with reference, zero
+#' or span gases. The ambient shoulders before a closure mostly reflect real
+#' ambient variability: their trend (\code{qc.ambient.drift}) is a flag only,
+#' it cannot measure drift inside the chamber and must not be subtracted.
 #'
 #' \strong{Leaks (\code{qc.leak}).} With \code{leak.rate}, the apparent flux a
 #' leak alone could produce is \code{leak.rate} times the largest

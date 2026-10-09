@@ -1,9 +1,13 @@
 #' Datasheet precision rescaled to a logging interval
 #'
-#' Manufacturers quote instrument precision at 1 s (1 Hz). A record logged
-#' every \code{dt_s} seconds averages that noise down, so the fair reference
-#' for an empirical precision measured on such a record is
-#' \eqn{spec_{1s} / \sqrt{dt_s}} (white noise). Compare the
+#' Manufacturers quote instrument precision at 1 s (1 Hz). When each value of
+#' a record logged every \code{dt_s} seconds is the average of the readings
+#' over that interval, the noise is averaged down, and the fair reference for
+#' an empirical precision measured on such a record is
+#' \eqn{spec_{1s} / \sqrt{dt_s}} (white noise). Valid only if the logged
+#' values are averages, not snapshots: check the acquisition settings (e.g.
+#' a non-zero within-interval standard deviation per row, such as the
+#' \code{[CH4]_ppm_sd} column of ABB/LGR GLA131 files). Compare the
 #' \code{\link[goFlux]{empirical.prec}} of a 5 s or 10 s record with this, not
 #' with the 1 s figure; otherwise an analyzer can appear to beat its datasheet
 #' when it is several times worse. Not valid once \code{dt_s} exceeds the
