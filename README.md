@@ -9,8 +9,10 @@
 > flags, window and clock utilities, a one-call pipeline and example closures;
 > see [NEWS.md](NEWS.md), "Fork additions"). The additions keep goFlux's
 > style so that they can be offered upstream. Releases of the fork carry
-> their own version number (0.5.0.9001, ...) and are archived on Zenodo; cite
-> the release together with the JOSS paper (see `citation("goFlux")`).
+> their own version number and are archived on Zenodo: version 0.5.0.9001 is
+> [doi:10.5281/zenodo.23254791](https://doi.org/10.5281/zenodo.23254791)
+> (all versions: [doi:10.5281/zenodo.23254790](https://doi.org/10.5281/zenodo.23254790)).
+> Cite the release together with the JOSS paper (see `citation("goFlux")`).
 > Install a release with
 > `remotes::install_github("jgewirtzman/goFlux@v0.5.0.9001")`.
 
