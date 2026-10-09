@@ -23,16 +23,15 @@
 #'
 #' @details
 #' \strong{Measurement time \code{t}.} \code{\link[goFlux]{goFlux}} passes
-#' \code{t = max(Etime) + 1}, where \code{Etime} is the elapsed time in
-#' seconds computed from \code{POSIX.time} (\code{as.numeric(POSIX.time -
-#' start.time, units = "secs")}). It is therefore in seconds whatever the
-#' logging interval: a closure of 180 s logged every 5 s (36 observations)
-#' gives the same \eqn{MDF \cdot t / p} as the same closure logged at 1 Hz
-#' (180 observations). \code{t} is never the number of observations
-#' (\code{nb.obs}); the two coincide only at 1 Hz. The \code{+ 1} adds one
-#' 1-s sample to the span of the flagged rows; at coarser intervals the exact
-#' closure length would be the span plus one logging interval, a difference
-#' of a few seconds on a closure of minutes.
+#' the closure duration from \code{\link[goFlux]{closure.time}}: the span of
+#' the retained window plus one logging interval, in seconds computed from
+#' \code{POSIX.time}. A closure of 180 s logged every 5 s (36 observations)
+#' therefore gives the same \eqn{MDF \cdot t / p} as the same closure logged
+#' at 1 Hz (180 observations). \code{t} is never the number of observations
+#' (\code{nb.obs}). Earlier versions used \code{max(Etime) + 1}, which equals
+#' the new value at 1 Hz and under-counts by \eqn{\Delta t - 1} seconds at
+#' coarser intervals. The same \code{t} enters the kappa-max bound of the HM
+#' model (\code{\link[goFlux]{k.max}}).
 #'
 #' \strong{Precision \code{p}.} With a datasheet or empirical precision
 #' expressed as one standard deviation, the default MDF is a one-sigma limit.

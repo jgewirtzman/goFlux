@@ -725,7 +725,7 @@ goAquaFlux <- function(dataframe,
     data_split[[f]]$flux_term <- flux_term_f
 
     MDF_f <- MDF(data_split[[f]]$prec_f[1],
-                 (max(data_split[[f]]$Etime)+1), flux_term_f)
+                 closure.time(data_split[[f]]$Etime), flux_term_f)
     data_split[[f]]$MDF <- MDF_f
   }
 

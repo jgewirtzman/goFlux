@@ -26,6 +26,7 @@ Collate:
     'autoID.R'
     'best.flux.R'
     'click.peak2.R'
+    'closure.time.R'
     'crop.meas.R'
     'empirical.prec.R'
     'find.bubbles.R'

@@ -60,13 +60,16 @@
 #'               \code{k.mult} must be > 0 and =< 10.
 #' @param warn.length numerical value; limit under which a measurement is
 #'                    flagged for being too short (\code{nb.obs < warn.length}).
-#' @param conf numerical value; optional two-sided confidence level for the
-#'             minimal detectable flux (see \code{\link[goFlux]{MDF}}): with
-#'             \code{conf = 0.95} the \code{MDF} column is
-#'             \eqn{1.96 \cdot prec / t \cdot flux.term}. Default \code{NULL}
-#'             keeps the current \eqn{prec / t \cdot flux.term}. Here \code{t}
-#'             is \code{max(Etime) + 1}, in seconds from \code{POSIX.time}
-#'             regardless of the logging interval (it is not \code{nb.obs}).
+#' @param conf numerical value; optional label for the multiplier applied to
+#'             the precision in the minimal detectable flux (see
+#'             \code{\link[goFlux]{MDF}}): with \code{conf = 0.95} the
+#'             \code{MDF} column is \eqn{1.96 \cdot prec / t \cdot flux.term}.
+#'             The 1.96 is a benchmark multiplier on a single concentration
+#'             difference, not a calibrated 95 \% test of the fitted flux.
+#'             Default \code{NULL} keeps \eqn{prec / t \cdot flux.term}. Here
+#'             \code{t} is the closure duration in seconds, the span of the
+#'             retained window plus one logging interval
+#'             (\code{\link[goFlux]{closure.time}}); it is not \code{nb.obs}.
 #' @param k.min numerical value; a lower boundary value for kappa in the HM model.
 #'              Default is \code{k.min = 0}
 #'
@@ -642,7 +645,7 @@ goFlux <- function(dataframe, gastype, H2O_col = "H2O_ppm", prec = NULL,
     data_split[[f]]$flux_term <- flux_term_f
 
     MDF_f <- MDF(data_split[[f]]$prec_f[1],
-                 (max(data_split[[f]]$Etime)+1), flux_term_f, conf = conf)
+                 closure.time(data_split[[f]]$Etime), flux_term_f, conf = conf)
     data_split[[f]]$MDF <- MDF_f
   }
 
@@ -725,7 +728,7 @@ goFlux <- function(dataframe, gastype, H2O_col = "H2O_ppm", prec = NULL,
       }
 
       # Calculate kappa thresholds based on MDF, LM.flux and Etime
-      kappa.max <- abs(k.max(MDF, LM.res$LM.flux, (max(data_split[[f]]$Etime)+1)))
+      kappa.max <- abs(k.max(MDF, LM.res$LM.flux, closure.time(data_split[[f]]$Etime)))
 
       # Try to catch errors and warnings from HM calculation
       HM.catch <- HM.flux(gas.meas = gas.meas, time.meas = data_split[[f]]$Etime,
