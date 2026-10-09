@@ -12,6 +12,7 @@ goAquaFlux.diffusive(
   bubble_gas = "CH4dry_ppb",
   bubbles = NULL,
   minimum_window = 30,
+  diffusive.window = c("pre_bubble", "deebulliated"),
   abrupt.window = 30,
   abrupt.min.points = 10,
   abrupt.threshold = 0.5
@@ -41,6 +42,13 @@ that gas (see Details).}
 \item{minimum_window}{Integer; minimum number of observations required in the
 diffusive window. If fewer are available the function returns \code{NA}.}
 
+\item{diffusive.window}{Character; which observations carry the diffusive
+signal for the bubble gas. \code{"pre_bubble"} (default) uses only the
+part of the series before the first detected bubble. \code{"deebulliated"}
+subtracts each event's fitted model from the trace (see Details) and fits
+the diffusive models on the whole incubation, which gives a diffusive
+flux for incubations that bubble too early for a pre-bubble window.}
+
 \item{abrupt.window}{Numeric; half-width (seconds) of the window used on each
 side of a candidate bubble time when testing for an abrupt slope change
 (non-bubble gases only). Default \code{30}.}
@@ -52,9 +60,13 @@ candidate time to run the abrupt-change test. Default \code{10}.}
 bubble is deemed to perturb the gas. Default \code{0.5} (i.e. 50\%).}
 }
 \value{
-A list with \code{flux}, \code{SE}, \code{n_used},
+A list with \code{flux}, \code{SE}, \code{n_used}, \code{window}
+  (\code{"full"}, \code{"pre_bubble"} or \code{"deebulliated"}),
   \code{first_bubble_time} (the start of the first detected bubble, or
-  \code{NA}), \code{best.flux.output} (the full \code{best.flux} row) and,
+  \code{NA}), \code{best.flux.output} (the full \code{best.flux} row),
+  \code{deebulliated} (the de-ebulliated trace with the excluded rise
+  samples at \code{flag = 0}; \code{NULL} unless
+  \code{diffusive.window = "deebulliated"} was applied) and,
   when flux cannot be computed, a \code{message}.
 }
 \description{
@@ -73,6 +85,26 @@ bubble does not necessarily perturb the concentration; the window is only cut
 at the first bubble time that is accompanied by an abrupt change in local
 slope (the ratio of the post- to pre-bubble slope exceeds
 \code{abrupt.threshold}). If no such change is found, the full series is used.
+
+\strong{De-ebulliated trace.} With \code{diffusive.window = "deebulliated"}
+and \code{gastype == bubble_gas}, each event in \code{bubbles} is removed
+from the trace before fitting: for observations at or after the event's
+step time \code{t.step}, the settled step \code{magnitude} and, when the
+re-equilibration term was retained, the transient
+\code{overshoot * exp(-(t - t.peak) / tau)} are subtracted (the plain
+\code{magnitude.step} is used when the event has no re-equilibration
+term, e.g. \code{magnitude.model = "step"}). Observations on the steep
+rise between \code{t.bubble} and \code{t.step}, which the event model does
+not describe, are flagged out (\code{flag = 0}; from the event's detected
+start to \code{t.peak}, and through \code{t.peak + tau} when the
+re-equilibration term was retained), and the models are fitted on the
+remaining observations. The result is the diffusive accumulation the
+models of \code{\link[goFlux]{find.bubbles}} were fitted around, extended
+over the whole incubation; it is only as good as those fits, so check
+\code{reequil.complete} and the plotted models before relying on it. For
+gases other than the bubble gas the event models do not apply and the
+\code{"pre_bubble"} rule above is used. Events with \code{NA} magnitude
+are left untouched.
 }
 \seealso{
 \code{\link{find.bubbles}}, \code{\link[goFlux]{goFlux}},

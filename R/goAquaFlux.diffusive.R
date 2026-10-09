@@ -31,6 +31,13 @@
 #' @param minimum_window Integer; minimum number of observations required in the
 #'   diffusive window. If fewer are available the function returns \code{NA}.
 #'
+#' @param diffusive.window Character; which observations carry the diffusive
+#'   signal for the bubble gas. \code{"pre_bubble"} (default) uses only the
+#'   part of the series before the first detected bubble. \code{"deebulliated"}
+#'   subtracts each event's fitted model from the trace (see Details) and fits
+#'   the diffusive models on the whole incubation, which gives a diffusive
+#'   flux for incubations that bubble too early for a pre-bubble window.
+#'
 #' @param abrupt.window Numeric; half-width (seconds) of the window used on each
 #'   side of a candidate bubble time when testing for an abrupt slope change
 #'   (non-bubble gases only). Default \code{30}.
@@ -41,9 +48,13 @@
 #' @param abrupt.threshold Numeric; relative slope-change threshold above which a
 #'   bubble is deemed to perturb the gas. Default \code{0.5} (i.e. 50\%).
 #'
-#' @return A list with \code{flux}, \code{SE}, \code{n_used},
+#' @return A list with \code{flux}, \code{SE}, \code{n_used}, \code{window}
+#'   (\code{"full"}, \code{"pre_bubble"} or \code{"deebulliated"}),
 #'   \code{first_bubble_time} (the start of the first detected bubble, or
-#'   \code{NA}), \code{best.flux.output} (the full \code{best.flux} row) and,
+#'   \code{NA}), \code{best.flux.output} (the full \code{best.flux} row),
+#'   \code{deebulliated} (the de-ebulliated trace with the excluded rise
+#'   samples at \code{flag = 0}; \code{NULL} unless
+#'   \code{diffusive.window = "deebulliated"} was applied) and,
 #'   when flux cannot be computed, a \code{message}.
 #'
 #' @details
@@ -53,6 +64,26 @@
 #' at the first bubble time that is accompanied by an abrupt change in local
 #' slope (the ratio of the post- to pre-bubble slope exceeds
 #' \code{abrupt.threshold}). If no such change is found, the full series is used.
+#'
+#' \strong{De-ebulliated trace.} With \code{diffusive.window = "deebulliated"}
+#' and \code{gastype == bubble_gas}, each event in \code{bubbles} is removed
+#' from the trace before fitting: for observations at or after the event's
+#' step time \code{t.step}, the settled step \code{magnitude} and, when the
+#' re-equilibration term was retained, the transient
+#' \code{overshoot * exp(-(t - t.peak) / tau)} are subtracted (the plain
+#' \code{magnitude.step} is used when the event has no re-equilibration
+#' term, e.g. \code{magnitude.model = "step"}). Observations on the steep
+#' rise between \code{t.bubble} and \code{t.step}, which the event model does
+#' not describe, are flagged out (\code{flag = 0}; from the event's detected
+#' start to \code{t.peak}, and through \code{t.peak + tau} when the
+#' re-equilibration term was retained), and the models are fitted on the
+#' remaining observations. The result is the diffusive accumulation the
+#' models of \code{\link[goFlux]{find.bubbles}} were fitted around, extended
+#' over the whole incubation; it is only as good as those fits, so check
+#' \code{reequil.complete} and the plotted models before relying on it. For
+#' gases other than the bubble gas the event models do not apply and the
+#' \code{"pre_bubble"} rule above is used. Events with \code{NA} magnitude
+#' are left untouched.
 #'
 #' @seealso \code{\link{find.bubbles}}, \code{\link[goFlux]{goFlux}},
 #'   \code{\link[goFlux]{best.flux}}, \code{\link{goAquaFlux.ebullition}},
@@ -74,11 +105,13 @@ goAquaFlux.diffusive <- function(df,
                                  bubble_gas = "CH4dry_ppb",
                                  bubbles = NULL,
                                  minimum_window = 30,
+                                 diffusive.window = c("pre_bubble", "deebulliated"),
                                  abrupt.window = 30,
                                  abrupt.min.points = 10,
                                  abrupt.threshold = 0.5) {
 
   df <- df[!duplicated(df$Etime), ]
+  diffusive.window <- match.arg(diffusive.window)
 
   # Actual first bubble time (reported to the user, independent of windowing).
   first_bubble_time <- if (!is.null(bubbles) && nrow(bubbles) > 0 &&
@@ -90,13 +123,25 @@ goAquaFlux.diffusive <- function(df,
     window = abrupt.window, min_points = abrupt.min.points,
     threshold = abrupt.threshold)
   df_diff <- res_window$df_diff
+  window_used <- if (is.na(res_window$stop_time)) "full" else "pre_bubble"
+  df_deb <- NULL
+
+  # De-ebulliated trace: subtract the fitted event models and use the whole
+  # incubation (bubble gas only; the models were fitted on that gas).
+  if (diffusive.window == "deebulliated" && identical(gastype, bubble_gas) &&
+      !is.null(bubbles) && nrow(bubbles) > 0 && any(!is.na(bubbles$magnitude))) {
+    df_deb <- .deebulliate(df, gastype, bubbles)
+    df_diff <- df_deb[df_deb$flag == 1, ]
+    window_used <- "deebulliated"
+  }
 
   n_used <- nrow(df_diff)
 
   if (n_used < minimum_window) {
     return(list(flux = NA_real_, SE = NA_real_, n_used = n_used,
+                window = window_used,
                 first_bubble_time = first_bubble_time,
-                best.flux.output = NULL,
+                best.flux.output = NULL, deebulliated = df_deb,
                 message = "Insufficient diffusive observations"))
   }
 
@@ -117,8 +162,48 @@ goAquaFlux.diffusive <- function(df,
   list(flux = best.flux.diff$best.flux,
        SE = best.flux.diff$SE_best_model,
        n_used = n_used,
+       window = window_used,
        first_bubble_time = first_bubble_time,
-       best.flux.output = best.flux.diff)
+       best.flux.output = best.flux.diff,
+       deebulliated = df_deb)
+}
+
+
+# --- Remove the fitted bubble models from the trace ---------------------------
+# For each event, for t >= t.step, subtract magnitude + overshoot *
+# exp(-(t - t.peak) / tau) (the settled step plus the decaying transient), or
+# the plain step when the event carries no re-equilibration term. The samples
+# of the physical rise itself (from the event's detected start to the transient
+# peak t.peak, and through t.peak + tau when the re-equilibration term was
+# retained) are not described by the model and are flagged out (flag = 0)
+# rather than dropped, so the returned trace can be plotted as a whole.
+.deebulliate <- function(df, gastype, bubbles) {
+  t <- df$Etime
+  conc <- df[[gastype]]
+  excl <- rep(FALSE, length(t))
+  for (i in seq_len(nrow(bubbles))) {
+    b <- bubbles[i, ]
+    if (is.na(b$magnitude)) next
+    t.step   <- if (!is.null(b$t.step)   && !is.na(b$t.step))   b$t.step   else b$start
+    t.start  <- if (!is.na(b$start)) min(b$start, t.step) else t.step
+    t.peak   <- if (!is.null(b$t.peak)   && !is.na(b$t.peak))   b$t.peak   else t.step
+    has_reeq <- !is.null(b$tau) && !is.na(b$tau) &&
+                !is.null(b$overshoot) && !is.na(b$overshoot) && b$overshoot != 0
+    after <- t >= t.step
+    if (has_reeq) {
+      conc[after] <- conc[after] - b$magnitude -
+        b$overshoot * exp(-pmax(t[after] - t.peak, 0) / b$tau)
+    } else {
+      step <- if (!is.null(b$magnitude.step) && !is.na(b$magnitude.step) &&
+                  (is.null(b$tau) || is.na(b$tau))) b$magnitude.step else b$magnitude
+      conc[after] <- conc[after] - step
+    }
+    t.excl.end <- if (has_reeq) t.peak + b$tau else t.peak
+    excl[t >= t.start & t <= t.excl.end] <- TRUE
+  }
+  df[[gastype]] <- conc
+  df$flag[excl] <- 0
+  df
 }
 
 

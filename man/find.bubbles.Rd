@@ -23,7 +23,9 @@ find.bubbles(
   magnitude.model = c("step_reequil", "step"),
   tau.range = c(2, NA),
   exclude.ramp = TRUE,
-  allow.slow.approach = FALSE
+  allow.slow.approach = FALSE,
+  settle.mult = 3,
+  second.pass = FALSE
 )
 }
 \arguments{
@@ -103,6 +105,22 @@ towards the settled level (\eqn{\beta_3 > 0}). If \code{TRUE}, a gradual
 approach from below (\eqn{\beta_3 < 0}) is also allowed. This can recover
 steps that mix slowly into the headspace, but it can also turn a change in
 diffusive slope into a spurious step.}
+
+\item{settle.mult}{Numeric; the next event's baseline may only start once
+the previous event has re-equilibrated, i.e. \code{settle.mult} times
+\code{tau} after its peak (default 3). A smaller value (e.g. 1) lets a
+second bubble be fitted closer to the first; it is only used when the
+re-equilibration term was retained. In the validation of
+\code{inst/validation/} it had no measurable effect.}
+
+\item{second.pass}{Logical; if \code{TRUE} (default \code{FALSE}), after the
+events have been fitted the fitted models are subtracted from the trace
+(the rise samples are bridged linearly) and the detection is run once
+more on that residual, to catch a second bubble hidden inside the first
+one's window. New events overlapping a first-pass event (within
+\code{min_gap}) are discarded; the others are appended, with their
+\code{intercept} shifted back to the raw trace so that the models can
+still be drawn.}
 }
 \value{
 A data.frame with one row per retained bubbling event and columns:

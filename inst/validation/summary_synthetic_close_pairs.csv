@@ -1,0 +1,2 @@
+"group","n","hit_rate","fp_per_trace","mag_bias_pct","pre_NA","rel_naive","rel_pre","rel_deb","abs_naive","abs_pre","abs_deb","rel_total_pre","rel_total_deb"
+"all",934,0.549,0.012,2.8,0.509,222.2,2.3,5.7,8.205,0.144,0.337,0.2,0.5

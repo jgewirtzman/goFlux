@@ -72,7 +72,12 @@
 #'   returned.
 #'
 #' @param bubble.window.size Integer specifying the rolling window size
-#'   (number of observations) used for bubble detection.
+#'   (number of observations) used for bubble detection. Default 15, the
+#'   \code{\link{find.bubbles}} default (it was 30 until goFlux 0.4.0): on
+#'   synthetic traces with several or closely spaced bubbles the shorter window
+#'   raises the hit rate from 0.48 to 0.55 and halves the error of the
+#'   de-ebulliated diffusive flux, for 1 percent more false events on
+#'   bubble-free traces (see \code{inst/validation/deebulliated_validation.md}).
 #'
 #' @param bubble_gas Character string specifying the gas used to detect
 #'   bubbling events. Default is \code{"CH4dry_ppb"}.
@@ -93,6 +98,15 @@
 #'
 #' @param diffusion.minimum_window Minimum number of observations required
 #'   to compute diffusive flux before the first bubble event.
+#'
+#' @param diffusion.window Character; \code{"pre_bubble"} (default) fits the
+#'   diffusive flux of the bubble gas on the observations before the first
+#'   bubble; \code{"deebulliated"} subtracts the fitted bubble models from the
+#'   trace and fits on the whole incubation (see
+#'   \code{\link{goAquaFlux.diffusive}}). The window used is reported in the
+#'   \code{diffusive_window} column of \code{flux_summary}, and the
+#'   de-ebulliated traces (with the excluded rise samples at \code{flag = 0})
+#'   are returned as a fourth element, \code{deebulliated}, for plotting.
 #'
 #' @param return_df Logical. If \code{TRUE} (default) the function returns a
 #'   tidy list of four data frames (see \strong{Value}). If \code{FALSE}, the
@@ -166,6 +180,17 @@
 #' \code{ebullition.check} should be inspected, e.g. with
 #' \code{\link{flux.plot.aqua}}.
 #'
+#' \strong{Order of operations with \code{\link{auto.deadband}} and
+#' \code{\link{crop.meas}}.} Trim the observation window first, then call
+#' \code{goAquaFlux()}: only the rows with \code{flag == 1} are used, and
+#' \code{Etime} is taken relative to the first retained observation, so bubble
+#' detection, the pre-bubble window and the ebullitive incubation time all
+#' refer to the trimmed window. A bubble that falls inside a deadband is
+#' therefore neither detected nor counted; do not crop after the fact to
+#' remove a bubble, that is what the partition is for. Detection needs at
+#' least 30 retained observations; on shorter windows the incubation is
+#' processed without bubble detection, with a warning.
+#'
 #' @references
 #' Rheault, K., Christiansen, J. R., & Larsen, K. S. (2024). goFlux: A
 #' user-friendly way to calculate GHG fluxes yourself, regardless of user
@@ -230,12 +255,18 @@ goAquaFlux <- function(dataframe,
                        # Diffusive flux
                        diffusion.minimum_window = 30,
                        diagnostics.args = list(),  ## named list of goAquaFlux.diagnostics() args (e.g. list(tolerance = 0.3)).
+                       diffusion.window = c("pre_bubble", "deebulliated"),
 
                        # Do you want results as dataframe? Default is list.
                        return_df = TRUE) {
 
 
   # ------------------- Check arguments -------------------
+  diffusion.window <- match.arg(diffusion.window)
+  if (isTRUE(use_bubble_detection) && !grepl("CH4", bubble_gas)) {
+    warning("bubble detection is run on '", bubble_gas, "'; the detector and its ",
+            "defaults were developed for CH4 steps, check the events by eye", call. = FALSE)
+  }
 
   is_scalar_num <- function(x) {
     is.numeric(x) && length(x) == 1L && !is.na(x) && is.finite(x)}
@@ -752,7 +783,12 @@ goAquaFlux <- function(dataframe,
         list(df = df, bubble_source = bubble_gas,
              window.size = bubble.window.size, method = bubble.method),
         bubble.args)
-      bubbles <- do.call(find.bubbles, .bubble_call)
+      # A window too short for the detector (< 30 observations) should not
+      # sink the incubation: fall back to the diffusive fit, with a warning.
+      bubbles <- tryCatch(do.call(find.bubbles, .bubble_call), error = function(e) {
+        warning("UniqueID ", df$UniqueID[1], ": bubble detection skipped (",
+                conditionMessage(e), ")", call. = FALSE)
+        NULL })
 
     } else {
 
@@ -807,7 +843,8 @@ goAquaFlux <- function(dataframe,
       ## truncated correctly for the bubble gas and,
       ## for other gases, only on an abrupt change.
       bubbles = bubbles,
-      minimum_window = diffusion.minimum_window
+      minimum_window = diffusion.minimum_window,
+      diffusive.window = diffusion.window
     )
 
 
@@ -865,6 +902,7 @@ goAquaFlux <- function(dataframe,
       flux_diffusive = diffusive_flux$flux,
       SE_diffusive = diffusive_flux$SE,
       n_obs.diffusion = diffusive_flux$n_used,
+      diffusive_window = diffusive_flux$window,
 
       flux_ebullition = ebullition_flux$flux,
       SE_ebullition = ebullition_flux$SE,
@@ -886,7 +924,8 @@ goAquaFlux <- function(dataframe,
       flux_summary = flux_summary,
       bubbles = bubbles,
       best.diffusive.flux = diffusive_flux$best.flux.output,
-      diagnostics = diagnostics
+      diagnostics = diagnostics,
+      deebulliated = diffusive_flux$deebulliated
     )
 
   }
@@ -903,6 +942,7 @@ goAquaFlux <- function(dataframe,
   df_bubbles <- .bind_with_id(flux.res.ls, "bubbles")
 
   df_diffusive <- .bind_with_id(flux.res.ls, "best.diffusive.flux")
+  df_deebulliated <- .bind_with_id(flux.res.ls, "deebulliated")
 
   df_diagnostics <- .bind_with_id(flux.res.ls, "diagnostics")
 
@@ -921,7 +961,8 @@ goAquaFlux <- function(dataframe,
     bubbles = df_bubbles,
     diffusive = df_diffusive,
     diagnostics = if (!is.null(df_diagnostics))
-      df_diagnostics[order(df_diagnostics$UniqueID), ] else NULL
+      df_diagnostics[order(df_diagnostics$UniqueID), ] else NULL,
+    deebulliated = df_deebulliated
   ))
 }
 

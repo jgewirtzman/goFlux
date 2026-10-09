@@ -20,7 +20,11 @@ flux.plot.aqua(
 \arguments{
 \item{flux.results.ls}{The list returned by \code{\link{goAquaFlux}} (with
 \code{return_df = TRUE}), containing \code{flux_summary}, \code{bubbles},
-\code{diffusive} and \code{diagnostics}. \code{bubbles} may be \code{NULL} when no
+\code{diffusive} and \code{diagnostics}, plus \code{deebulliated} when
+\code{goAquaFlux()} was run with \code{diffusion.window = "deebulliated"}:
+those traces are then drawn as well (retained samples in blue, the masked
+rise samples as grey crosses) and the LM/HM fits span the whole incubation
+because they were made on them. \code{bubbles} may be \code{NULL} when no
 ebullition detection was run. For backwards compatibility a plain
 \code{best.flux}-style data.frame may also be supplied, in which case the
 call is delegated to \code{\link[goFlux]{flux.plot}} and only the diffusive

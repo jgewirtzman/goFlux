@@ -81,6 +81,22 @@
 #'   the transient peak) are excluded from the magnitude regression, because they
 #'   belong neither to the pre-bubble nor to the post-bubble level.
 #'
+#' @param settle.mult Numeric; the next event's baseline may only start once
+#'   the previous event has re-equilibrated, i.e. \code{settle.mult} times
+#'   \code{tau} after its peak (default 3). A smaller value (e.g. 1) lets a
+#'   second bubble be fitted closer to the first; it is only used when the
+#'   re-equilibration term was retained. In the validation of
+#'   \code{inst/validation/} it had no measurable effect.
+#'
+#' @param second.pass Logical; if \code{TRUE} (default \code{FALSE}), after the
+#'   events have been fitted the fitted models are subtracted from the trace
+#'   (the rise samples are bridged linearly) and the detection is run once
+#'   more on that residual, to catch a second bubble hidden inside the first
+#'   one's window. New events overlapping a first-pass event (within
+#'   \code{min_gap}) are discarded; the others are appended, with their
+#'   \code{intercept} shifted back to the raw trace so that the models can
+#'   still be drawn.
+#'
 #' @param allow.slow.approach Logical; if \code{FALSE} (default), the
 #'   re-equilibration term must describe a positive overshoot that decays
 #'   towards the settled level (\eqn{\beta_3 > 0}). If \code{TRUE}, a gradual
@@ -232,7 +248,9 @@ find.bubbles <- function(df,
                          magnitude.model = c("step_reequil", "step"),
                          tau.range = c(2, NA),
                          exclude.ramp = TRUE,
-                         allow.slow.approach = FALSE) {
+                         allow.slow.approach = FALSE,
+                         settle.mult = 3,
+                         second.pass = FALSE) {
 
   method <- match.arg(method)
   magnitude.model <- match.arg(magnitude.model)
@@ -391,190 +409,199 @@ find.bubbles <- function(df,
   # ---------------------------------------------------------------------------
 
   chunks$bubble.gas       <- bubble_source
-  chunks$magnitude        <- NA_real_
-  chunks$SE               <- NA_real_
-  chunks$slope            <- NA_real_
-  chunks$n_used           <- NA_integer_
-  chunks$overshoot        <- NA_real_
-  chunks$tau              <- NA_real_
-  chunks$magnitude.step   <- NA_real_
-  chunks$reequil.complete <- NA
-  # Terms needed to redraw the fitted event model (see @return).
-  chunks$intercept        <- NA_real_
-  chunks$t.bubble         <- NA_real_
-  chunks$t.step           <- NA_real_
-  chunks$t.peak           <- NA_real_
-  chunks$fit.start        <- NA_real_
-  chunks$fit.end          <- NA_real_
+  # Fit the event model on every candidate run. Kept as a closure so that the
+  # second pass (see below) can refit an updated set of runs.
+  fit_chunks <- function(chunks) {
+    chunks$magnitude        <- NA_real_
+    chunks$SE               <- NA_real_
+    chunks$slope            <- NA_real_
+    chunks$n_used           <- NA_integer_
+    chunks$overshoot        <- NA_real_
+    chunks$tau              <- NA_real_
+    chunks$magnitude.step   <- NA_real_
+    chunks$reequil.complete <- NA
+    # Terms needed to redraw the fitted event model (see @return).
+    chunks$intercept        <- NA_real_
+    chunks$t.bubble         <- NA_real_
+    chunks$t.step           <- NA_real_
+    chunks$t.peak           <- NA_real_
+    chunks$fit.start        <- NA_real_
+    chunks$fit.end          <- NA_real_
 
-  # First differences of the (deduplicated) raw series, aligned so that
-  # raw_incr[j] is the increment that leads TO observation j.
-  raw_incr <- c(NA_real_, diff(conc))
+    # First differences of the (deduplicated) raw series, aligned so that
+    # raw_incr[j] is the increment that leads TO observation j.
+    raw_incr <- c(NA_real_, diff(conc))
 
-  # Robust level and spread of the increments. An increment larger than
-  # median + 3 * MAD is treated as part of the steep bubble rise (the "ramp").
-  incr_med <- median(raw_incr, na.rm = TRUE)
-  incr_thr <- 3 * mad(raw_incr, na.rm = TRUE)
+    # Robust level and spread of the increments. An increment larger than
+    # median + 3 * MAD is treated as part of the steep bubble rise (the "ramp").
+    incr_med <- median(raw_incr, na.rm = TRUE)
+    incr_thr <- 3 * mad(raw_incr, na.rm = TRUE)
 
-  # Time after which the previous event is considered re-equilibrated. It is
-  # only updated when a re-equilibration term is retained (t_p + 3 * tau);
-  # otherwise the previous event imposes no additional constraint.
-  prev_settled <- -Inf
+    # Time after which the previous event is considered re-equilibrated. It is
+    # only updated when a re-equilibration term is retained (t_p + 3 * tau);
+    # otherwise the previous event imposes no additional constraint.
+    prev_settled <- -Inf
 
-  for (i in seq_len(nrow(chunks))) {
+    for (i in seq_len(nrow(chunks))) {
 
-    # --- Step time t_b -------------------------------------------------------
-    # Anchor the step at the LARGEST positive increment inside the event rather
-    # than at the event's leading edge: the centred rolling window starts to
-    # rise before the true step, which would otherwise bias the magnitude low.
-    inchunk <- which(time >= chunks$start[i] & time <= chunks$end[i])
-    if (length(inchunk) >= 2 && any(is.finite(raw_incr[inchunk]))) {
-      ib <- inchunk[which.max(raw_incr[inchunk])]
-      tb.start <- time[ib]
-    } else {
-      ib <- NA_integer_
-      tb.start <- chunks$start[i]
-    }
-
-    # --- Regression bounds ---------------------------------------------------
-    # Between the neighbouring events, and within max_reg_window seconds of t_b.
-    tmin <- if (i == 1) min(time) else chunks$end[i - 1] + dt
-    tmax <- if (i == nrow(chunks)) max(time) else chunks$start[i + 1] - dt
-    tmin <- max(tmin, tb.start - max_reg_window)
-    tmax <- min(tmax, tb.start + max_reg_window)
-
-    # --- Steep rise (ramp) and transient peak t_p ----------------------------
-    # A bubble rarely produces a single-sample jump: the concentration usually
-    # climbs over a few observations, up to a transient peak. Starting from the
-    # largest increment, the ramp is extended forward while the increments stay
-    # large (the last such observation is the peak) and backward while the
-    # observations were themselves reached by large increments. Ramp
-    # observations sit between the pre- and post-bubble levels, so they are
-    # excluded from the regression when exclude.ramp = TRUE. The peak itself is
-    # kept: it is the first observation of the post-bubble segment.
-    ramp   <- rep(FALSE, length(time))
-    t.peak <- tb.start
-    if (!is.na(ib) && is.finite(incr_thr) && incr_thr > 0) {
-      big <- (raw_incr - incr_med) > incr_thr
-      j <- ib + 1
-      while (j <= length(time) && isTRUE(big[j])) j <- j + 1
-      ip <- j - 1
-      if (ip > ib) ramp[ib:(ip - 1)] <- TRUE
-      j <- ib - 1
-      while (j > 1 && isTRUE(big[j])) { ramp[j] <- TRUE; j <- j - 1 }
-      t.peak <- time[ip]
-      if (!exclude.ramp) ramp[] <- FALSE
-    }
-
-    # Time at which the step dummy switches from 0 to 1. With the ramp removed,
-    # any time within the ramp separates the same two groups of observations;
-    # the peak is used. Without ramp exclusion, t_b is used as in the plain
-    # step regression.
-    t.step <- if (exclude.ramp) t.peak else tb.start
-
-    # --- Observations used in the regression ---------------------------------
-    # Preferred: start the pre-bubble segment after the previous event has
-    # re-equilibrated and drop the ramp. If this leaves fewer than 3
-    # pre-bubble observations, relax the constraints one at a time so the event
-    # is not lost.
-    tmin_eq <- max(tmin, prev_settled)
-    idx <- time >= tmin_eq & time <= tmax & !ramp
-    if (sum(time[idx] < t.step) < 3) idx <- time >= tmin & time <= tmax & !ramp
-    if (sum(time[idx] < t.step) < 3) idx <- time >= tmin & time <= tmax
-    if (sum(idx) < reg.min.obs) next
-
-    df_local <- data.frame(time = time[idx], conc = conc[idx])
-
-    # Require observations on both sides of the step.
-    if (sum(df_local$time <  t.step) < 3 ||
-        sum(df_local$time >= t.step) < 3) next
-
-    df_local$bubble        <- ifelse(df_local$time >= t.step, 1, 0)
-    df_local$time_centered <- df_local$time - tb.start
-
-    # --- Plain step regression -----------------------------------------------
-    # C = b0 + b1 * (t - t_b) + b2 * I(t >= t_s): parallel pre- and post-bubble
-    # lines, b2 being their vertical offset (the step).
-    mod <- try(lm(conc ~ time_centered + bubble, data = df_local), silent = TRUE)
-    if (inherits(mod, "try-error")) next
-
-    coefs <- summary(mod)$coefficients
-    if (!"bubble" %in% rownames(coefs)) next
-    chunks$magnitude.step[i] <- coefs["bubble", "Estimate"]
-
-    # --- Step + re-equilibration regression ----------------------------------
-    # C = b0 + b1 * (t - t_b) + I(t >= t_s) * [b2 + b3 * exp(-(t - t_p) / tau)]
-    # b2 is then the SETTLED step (gas remaining in the headspace after
-    # mixing) and b3 the size of the transient at the peak. For a fixed tau the
-    # model is linear, so tau is profiled: coarse log-spaced grid, then a 1-D
-    # search between the grid neighbours of the best value.
-    best_tau      <- NA_real_
-    reeq_complete <- NA
-    if (magnitude.model == "step_reequil") {
-
-      # Post-peak data available; tau cannot usefully exceed this span.
-      post_span <- max(df_local$time) - t.peak
-      tau_hi <- if (is.na(tau.range[2])) post_span else min(tau.range[2], post_span)
-
-      # Fit the linear model for a given tau. Returns NULL when the fit fails,
-      # is rank deficient, or (unless allowed) describes an approach from below
-      # (b3 <= 0) rather than a decaying overshoot.
-      fit_tau <- function(tau) {
-        d <- df_local
-        d$reeq <- d$bubble * exp(-pmax(d$time - t.peak, 0) / tau)
-        m <- try(lm(conc ~ time_centered + bubble + reeq, data = d), silent = TRUE)
-        if (inherits(m, "try-error") || anyNA(coef(m))) return(NULL)
-        if (!allow.slow.approach && coef(m)[["reeq"]] <= 0) return(NULL)
-        m
-      }
-      rss <- function(tau) {
-        m <- fit_tau(tau)
-        if (is.null(m)) Inf else sum(residuals(m)^2)
+      # --- Step time t_b -------------------------------------------------------
+      # Anchor the step at the LARGEST positive increment inside the event rather
+      # than at the event's leading edge: the centred rolling window starts to
+      # rise before the true step, which would otherwise bias the magnitude low.
+      inchunk <- which(time >= chunks$start[i] & time <= chunks$end[i])
+      if (length(inchunk) >= 2 && any(is.finite(raw_incr[inchunk]))) {
+        ib <- inchunk[which.max(raw_incr[inchunk])]
+        tb.start <- time[ib]
+      } else {
+        ib <- NA_integer_
+        tb.start <- chunks$start[i]
       }
 
-      if (tau_hi > tau.range[1]) {
-        g <- exp(seq(log(tau.range[1]), log(tau_hi), length.out = 15))
-        r <- vapply(g, rss, numeric(1))
-        kb <- which.min(r)
-        if (is.finite(r[kb])) {
-          opt <- optimize(rss, c(g[max(1, kb - 1)], g[min(length(g), kb + 1)]))
-          tau_star <- if (opt$objective <= r[kb]) opt$minimum else g[kb]
-          m <- fit_tau(tau_star)
+      # --- Regression bounds ---------------------------------------------------
+      # Between the neighbouring events, and within max_reg_window seconds of t_b.
+      # A run split off by the second pass keeps the previous event's
+      # post-bubble level as its pre-bubble segment.
+      tmin <- if (i == 1) min(time) else if (isTRUE(chunks$split[i]) && !is.na(chunks$t.step[i - 1]))
+        chunks$t.step[i - 1] + dt else chunks$end[i - 1] + dt
+      tmax <- if (i == nrow(chunks)) max(time) else chunks$start[i + 1] - dt
+      tmin <- max(tmin, tb.start - max_reg_window)
+      tmax <- min(tmax, tb.start + max_reg_window)
 
-          # Keep the re-equilibration term only if it improves on the plain
-          # step model by AIC, with +2 for the profiled tau parameter.
-          if (!is.null(m) && AIC(m) + 2 < AIC(mod)) {
-            mod <- m
-            best_tau <- tau_star
-            # Settled level observed (>= 3 tau after the peak) or extrapolated.
-            reeq_complete <- post_span >= 3 * tau_star
+      # --- Steep rise (ramp) and transient peak t_p ----------------------------
+      # A bubble rarely produces a single-sample jump: the concentration usually
+      # climbs over a few observations, up to a transient peak. Starting from the
+      # largest increment, the ramp is extended forward while the increments stay
+      # large (the last such observation is the peak) and backward while the
+      # observations were themselves reached by large increments. Ramp
+      # observations sit between the pre- and post-bubble levels, so they are
+      # excluded from the regression when exclude.ramp = TRUE. The peak itself is
+      # kept: it is the first observation of the post-bubble segment.
+      ramp   <- rep(FALSE, length(time))
+      t.peak <- tb.start
+      if (!is.na(ib) && is.finite(incr_thr) && incr_thr > 0) {
+        big <- (raw_incr - incr_med) > incr_thr
+        j <- ib + 1
+        while (j <= length(time) && isTRUE(big[j])) j <- j + 1
+        ip <- j - 1
+        if (ip > ib) ramp[ib:(ip - 1)] <- TRUE
+        j <- ib - 1
+        while (j > 1 && isTRUE(big[j])) { ramp[j] <- TRUE; j <- j - 1 }
+        t.peak <- time[ip]
+        if (!exclude.ramp) ramp[] <- FALSE
+      }
+
+      # Time at which the step dummy switches from 0 to 1. With the ramp removed,
+      # any time within the ramp separates the same two groups of observations;
+      # the peak is used. Without ramp exclusion, t_b is used as in the plain
+      # step regression.
+      t.step <- if (exclude.ramp) t.peak else tb.start
+
+      # --- Observations used in the regression ---------------------------------
+      # Preferred: start the pre-bubble segment after the previous event has
+      # re-equilibrated and drop the ramp. If this leaves fewer than 3
+      # pre-bubble observations, relax the constraints one at a time so the event
+      # is not lost.
+      tmin_eq <- max(tmin, prev_settled)
+      idx <- time >= tmin_eq & time <= tmax & !ramp
+      if (sum(time[idx] < t.step) < 3) idx <- time >= tmin & time <= tmax & !ramp
+      if (sum(time[idx] < t.step) < 3) idx <- time >= tmin & time <= tmax
+      if (sum(idx) < reg.min.obs) next
+
+      df_local <- data.frame(time = time[idx], conc = conc[idx])
+
+      # Require observations on both sides of the step.
+      if (sum(df_local$time <  t.step) < 3 ||
+          sum(df_local$time >= t.step) < 3) next
+
+      df_local$bubble        <- ifelse(df_local$time >= t.step, 1, 0)
+      df_local$time_centered <- df_local$time - tb.start
+
+      # --- Plain step regression -----------------------------------------------
+      # C = b0 + b1 * (t - t_b) + b2 * I(t >= t_s): parallel pre- and post-bubble
+      # lines, b2 being their vertical offset (the step).
+      mod <- try(lm(conc ~ time_centered + bubble, data = df_local), silent = TRUE)
+      if (inherits(mod, "try-error")) next
+
+      coefs <- summary(mod)$coefficients
+      if (!"bubble" %in% rownames(coefs)) next
+      chunks$magnitude.step[i] <- coefs["bubble", "Estimate"]
+
+      # --- Step + re-equilibration regression ----------------------------------
+      # C = b0 + b1 * (t - t_b) + I(t >= t_s) * [b2 + b3 * exp(-(t - t_p) / tau)]
+      # b2 is then the SETTLED step (gas remaining in the headspace after
+      # mixing) and b3 the size of the transient at the peak. For a fixed tau the
+      # model is linear, so tau is profiled: coarse log-spaced grid, then a 1-D
+      # search between the grid neighbours of the best value.
+      best_tau      <- NA_real_
+      reeq_complete <- NA
+      if (magnitude.model == "step_reequil") {
+
+        # Post-peak data available; tau cannot usefully exceed this span.
+        post_span <- max(df_local$time) - t.peak
+        tau_hi <- if (is.na(tau.range[2])) post_span else min(tau.range[2], post_span)
+
+        # Fit the linear model for a given tau. Returns NULL when the fit fails,
+        # is rank deficient, or (unless allowed) describes an approach from below
+        # (b3 <= 0) rather than a decaying overshoot.
+        fit_tau <- function(tau) {
+          d <- df_local
+          d$reeq <- d$bubble * exp(-pmax(d$time - t.peak, 0) / tau)
+          m <- try(lm(conc ~ time_centered + bubble + reeq, data = d), silent = TRUE)
+          if (inherits(m, "try-error") || anyNA(coef(m))) return(NULL)
+          if (!allow.slow.approach && coef(m)[["reeq"]] <= 0) return(NULL)
+          m
+        }
+        rss <- function(tau) {
+          m <- fit_tau(tau)
+          if (is.null(m)) Inf else sum(residuals(m)^2)
+        }
+
+        if (tau_hi > tau.range[1]) {
+          g <- exp(seq(log(tau.range[1]), log(tau_hi), length.out = 15))
+          r <- vapply(g, rss, numeric(1))
+          kb <- which.min(r)
+          if (is.finite(r[kb])) {
+            opt <- optimize(rss, c(g[max(1, kb - 1)], g[min(length(g), kb + 1)]))
+            tau_star <- if (opt$objective <= r[kb]) opt$minimum else g[kb]
+            m <- fit_tau(tau_star)
+
+            # Keep the re-equilibration term only if it improves on the plain
+            # step model by AIC, with +2 for the profiled tau parameter.
+            if (!is.null(m) && AIC(m) + 2 < AIC(mod)) {
+              mod <- m
+              best_tau <- tau_star
+              # Settled level observed (>= 3 tau after the peak) or extrapolated.
+              reeq_complete <- post_span >= 3 * tau_star
+            }
           }
         }
+        coefs <- summary(mod)$coefficients
       }
-      coefs <- summary(mod)$coefficients
+
+      # --- Store results -------------------------------------------------------
+      chunks$magnitude[i]        <- coefs["bubble", "Estimate"]
+      chunks$SE[i]               <- coefs["bubble", "Std. Error"]
+      chunks$slope[i]            <- coefs["time_centered", "Estimate"]
+      chunks$n_used[i]           <- nrow(df_local)
+      chunks$overshoot[i]        <- if (magnitude.model == "step") NA_real_ else
+        if (is.na(best_tau)) 0 else coefs["reeq", "Estimate"]
+      chunks$tau[i]              <- best_tau
+      chunks$reequil.complete[i] <- reeq_complete
+      # Remaining model terms, stored so that the fit can be redrawn (e.g. by
+      # flux.plot.aqua) without refitting.
+      chunks$intercept[i]        <- coefs["(Intercept)", "Estimate"]
+      chunks$t.bubble[i]         <- tb.start
+      chunks$t.step[i]           <- t.step
+      chunks$t.peak[i]           <- t.peak
+      chunks$fit.start[i]        <- min(df_local$time)
+      chunks$fit.end[i]          <- max(df_local$time)
+
+      # The next event's baseline should start once this one has re-equilibrated.
+      prev_settled <- if (is.na(best_tau)) -Inf else t.peak + settle.mult * best_tau
     }
-
-    # --- Store results -------------------------------------------------------
-    chunks$magnitude[i]        <- coefs["bubble", "Estimate"]
-    chunks$SE[i]               <- coefs["bubble", "Std. Error"]
-    chunks$slope[i]            <- coefs["time_centered", "Estimate"]
-    chunks$n_used[i]           <- nrow(df_local)
-    chunks$overshoot[i]        <- if (magnitude.model == "step") NA_real_ else
-      if (is.na(best_tau)) 0 else coefs["reeq", "Estimate"]
-    chunks$tau[i]              <- best_tau
-    chunks$reequil.complete[i] <- reeq_complete
-    # Remaining model terms, stored so that the fit can be redrawn (e.g. by
-    # flux.plot.aqua) without refitting.
-    chunks$intercept[i]        <- coefs["(Intercept)", "Estimate"]
-    chunks$t.bubble[i]         <- tb.start
-    chunks$t.step[i]           <- t.step
-    chunks$t.peak[i]           <- t.peak
-    chunks$fit.start[i]        <- min(df_local$time)
-    chunks$fit.end[i]          <- max(df_local$time)
-
-    # The next event's baseline should start once this one has re-equilibrated.
-    prev_settled <- if (is.na(best_tau)) -Inf else t.peak + 3 * best_tau
+    chunks
   }
+  chunks <- fit_chunks(chunks)
 
 
   # ---------------------------------------------------------------------------
@@ -590,6 +617,72 @@ find.bubbles <- function(df,
 
   chunks <- chunks[valid, ]
   if (nrow(chunks) == 0) return(NULL)
+
+  # ---------------------------------------------------------------------------
+  # Optional second pass on the residual trace
+  # ---------------------------------------------------------------------------
+  # The fitted models are subtracted (rise samples bridged linearly), the
+  # detection is run again on the residual, and every run that contains a new
+  # event is split at it; all runs are then refitted together, so that the
+  # first event's window no longer swallows the second.
+  if (isTRUE(second.pass)) {
+    resid <- conc
+    for (i in seq_len(nrow(chunks))) {
+      b <- chunks[i, ]
+      after <- time >= b$t.step
+      resid[after] <- resid[after] - if (!is.na(b$tau) && !is.na(b$overshoot)) {
+        b$magnitude + b$overshoot * exp(-pmax(time[after] - b$t.peak, 0) / b$tau)
+      } else if (!is.na(b$magnitude.step)) b$magnitude.step else b$magnitude
+      rise <- which(time >= b$start & time <= b$t.peak)
+      if (length(rise)) {
+        i0 <- max(1, min(rise) - 1); i1 <- min(length(time), max(rise) + 1)
+        resid[rise] <- approx(time[c(i0, i1)], resid[c(i0, i1)], xout = time[rise])$y
+      }
+    }
+    df2 <- df[!dup, , drop = FALSE]
+    df2[[bubble_source]] <- resid
+    extra <- find.bubbles(df2, bubble_source, window.size = window.size, dt = dt,
+                          method = method, var.quantile = var.quantile, k = k,
+                          min_ratio = min_ratio, min_sd = min_sd, min_gap = min_gap,
+                          min_length = min_length, max_reg_window = max_reg_window,
+                          reg.min.obs = reg.min.obs, min_magnitude = min_magnitude,
+                          min_snr = min_snr, magnitude.model = magnitude.model,
+                          tau.range = tau.range, exclude.ramp = exclude.ramp,
+                          allow.slow.approach = allow.slow.approach,
+                          settle.mult = settle.mult, second.pass = FALSE)
+    if (!is.null(extra) && nrow(extra)) {
+      # a new event must not sit on a first-pass rise
+      keep <- vapply(seq_len(nrow(extra)), function(j) {
+        !any(extra$t.step[j] >= chunks$start - min_gap & extra$t.step[j] <= chunks$t.peak + min_gap)
+      }, logical(1))
+      extra <- extra[keep, , drop = FALSE]
+      if (nrow(extra)) {
+        runs <- chunks[, c("start", "end")]; runs$split <- FALSE
+        for (j in seq_len(nrow(extra))) {
+          sp <- extra$t.step[j]
+          inside <- which(runs$start < sp & runs$end >= sp)
+          if (length(inside)) {
+            i <- inside[1]
+            runs <- rbind(runs[-i, , drop = FALSE],
+                          data.frame(start = runs$start[i], end = sp - dt, split = runs$split[i]),
+                          data.frame(start = sp, end = runs$end[i], split = TRUE))
+          } else {
+            runs <- rbind(runs, data.frame(start = extra$start[j], end = extra$end[j], split = FALSE))
+          }
+        }
+        runs <- runs[order(runs$start), , drop = FALSE]
+        rownames(runs) <- NULL
+        chunks2 <- fit_chunks(runs)
+        valid2 <- !is.na(chunks2$magnitude) & chunks2$magnitude > 0
+        if (!is.null(min_magnitude)) valid2 <- valid2 & chunks2$magnitude >= min_magnitude
+        if (!is.null(min_snr)) {
+          valid2 <- valid2 & chunks2$magnitude / pmax(chunks2$SE, .Machine$double.eps) >= min_snr
+        }
+        chunks2 <- chunks2[valid2, , drop = FALSE]
+        if (nrow(chunks2) > nrow(chunks)) { chunks <- chunks2; chunks$split <- NULL; rownames(chunks) <- NULL }
+      }
+    }
+  }
 
   chunks
 }

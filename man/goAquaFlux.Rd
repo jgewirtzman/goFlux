@@ -26,6 +26,7 @@ goAquaFlux(
   ebullition.window_C0Cf = 10,
   diffusion.minimum_window = 30,
   diagnostics.args = list(),
+  diffusion.window = c("pre_bubble", "deebulliated"),
   return_df = TRUE
 )
 }
@@ -82,7 +83,12 @@ the flux is partitioned into diffusive and ebullitive components. If
 returned.}
 
 \item{bubble.window.size}{Integer specifying the rolling window size
-(number of observations) used for bubble detection.}
+(number of observations) used for bubble detection. Default 15, the
+\code{\link{find.bubbles}} default (it was 30 until goFlux 0.4.0): on
+synthetic traces with several or closely spaced bubbles the shorter window
+raises the hit rate from 0.48 to 0.55 and halves the error of the
+de-ebulliated diffusive flux, for 1 percent more false events on
+bubble-free traces (see \code{inst/validation/deebulliated_validation.md}).}
 
 \item{bubble_gas}{Character string specifying the gas used to detect
 bubbling events. Default is \code{"CH4dry_ppb"}.}
@@ -108,6 +114,15 @@ to compute diffusive flux before the first bubble event.}
 \item{diagnostics.args}{Named list of arguments passed to
 \code{\link{goAquaFlux.diagnostics}} (\code{window_C0Cf},
 \code{tolerance}, \code{min_snr}, \code{dl_sigma}).}
+
+\item{diffusion.window}{Character; \code{"pre_bubble"} (default) fits the
+diffusive flux of the bubble gas on the observations before the first
+bubble; \code{"deebulliated"} subtracts the fitted bubble models from the
+trace and fits on the whole incubation (see
+\code{\link{goAquaFlux.diffusive}}). The window used is reported in the
+\code{diffusive_window} column of \code{flux_summary}, and the
+de-ebulliated traces (with the excluded rise samples at \code{flag = 0})
+are returned as a fourth element, \code{deebulliated}, for plotting.}
 
 \item{return_df}{Logical. If \code{TRUE} (default) the function returns a
 tidy list of four data frames (see \strong{Value}). If \code{FALSE}, the
@@ -198,6 +213,17 @@ all checks were passed):
 Incubations with a non-empty \code{quality.check} or
 \code{ebullition.check} should be inspected, e.g. with
 \code{\link{flux.plot.aqua}}.
+
+\strong{Order of operations with \code{\link{auto.deadband}} and
+\code{\link{crop.meas}}.} Trim the observation window first, then call
+\code{goAquaFlux()}: only the rows with \code{flag == 1} are used, and
+\code{Etime} is taken relative to the first retained observation, so bubble
+detection, the pre-bubble window and the ebullitive incubation time all
+refer to the trimmed window. A bubble that falls inside a deadband is
+therefore neither detected nor counted; do not crop after the fact to
+remove a bubble, that is what the partition is for. Detection needs at
+least 30 retained observations; on shorter windows the incubation is
+processed without bubble detection, with a warning.
 }
 \examples{
 \dontrun{
