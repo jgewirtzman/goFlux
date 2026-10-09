@@ -107,6 +107,9 @@
 #'   \code{diffusive_window} column of \code{flux_summary}, and the
 #'   de-ebulliated traces (with the excluded rise samples at \code{flag = 0})
 #'   are returned as a fourth element, \code{deebulliated}, for plotting.
+#'   \code{"deebulliated"} assumes that the bubbles did not change diffusion;
+#'   a large bubble lowers the water-air gradient and can bias the diffusive
+#'   flux low (see \code{\link{goAquaFlux.diffusive}}).
 #'
 #' @param return_df Logical. If \code{TRUE} (default) the function returns a
 #'   tidy list of four data frames (see \strong{Value}). If \code{FALSE}, the

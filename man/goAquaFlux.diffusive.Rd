@@ -47,7 +47,15 @@ signal for the bubble gas. \code{"pre_bubble"} (default) uses only the
 part of the series before the first detected bubble. \code{"deebulliated"}
 subtracts each event's fitted model from the trace (see Details) and fits
 the diffusive models on the whole incubation, which gives a diffusive
-flux for incubations that bubble too early for a pre-bubble window.}
+flux for incubations that bubble too early for a pre-bubble window.
+\strong{Assumption:} subtracting a bubble's step assumes the bubble did not
+change diffusion. A large bubble raises the headspace concentration at
+once and so lowers the water-air gradient: diffusion after it is slower
+than it would have been. The HM model absorbs part of this as curvature,
+but its single saturation curve is not the shape of a gradient that drops
+at the bubble, so the de-ebulliated diffusive flux can be biased low when
+the step is large relative to the headspace-water concentration
+difference. Compare with \code{"pre_bubble"} where both are available.}
 
 \item{abrupt.window}{Numeric; half-width (seconds) of the window used on each
 side of a candidate bubble time when testing for an abrupt slope change

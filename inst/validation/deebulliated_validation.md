@@ -5,6 +5,21 @@ Script: `deebulliated_validation.R` (run from the package root on branch
 `summary_synthetic_*.csv`, `summary_sensitivity.csv`, `summary_before_after.csv`, `results_blueflux.csv`,
 `events_blueflux.csv`; per-trace synthetic results in `results_synthetic.csv.gz`.
 
+## Known limitation (added 2026-10-08, not covered by the tests below)
+
+The synthetic traces below have a diffusive rate that the bubbles do not
+change. In a real chamber a bubble raises the headspace concentration at once,
+which lowers the water-air gradient, so diffusion after the bubble is slower.
+Subtracting the step leaves that slowdown in the de-ebulliated trace; the HM
+fit absorbs part of it as curvature, but a single saturation curve is not the
+shape of a gradient that drops at the bubble. Example: `example.closures("ebullition_floating")`
+(one step of 1089 ppb at 50 s): slope 4.5 ppb/s before the bubble and
+3.6 ppb/s after 60 s; diffusive flux 25.6 nmol m-2 s-1 from the 31 pre-bubble
+points (HM, flagged for SE and nb.obs) and 22.5 from the 258 de-ebulliated
+points (12 % lower); mass balance closes (1.01). The pre-bubble estimate is
+noisier but unaffected by the bubble. A synthetic test with gradient feedback
+(dC/dt = k (C_eq - C), C jumping by the step) is still to do.
+
 ## A. Synthetic traces (2400, seed 20260924)
 
 Random factorial over slope {-0.5, 0, 0.05, 0.5, 2, 10} ppb/s, sigma {0.5, 2, 5} ppb
