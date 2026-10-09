@@ -21,8 +21,8 @@ bibentry(
   title = "goFlux (Rheault et al. 2024), fork with additions",
   author = person("Jonathan", "Gewirtzman"),
   year = "2026",
-  note = paste("R package, commit", sha),
+  note = paste0("R package version ", meta$Version, ", commit ", sha),
   url = "https://github.com/jgewirtzman/goFlux",
-  textVersion = paste0("Gewirtzman, J. (2026). goFlux (Rheault et al. 2024), fork with additions, ",
-                       "commit ", sha, ". https://github.com/jgewirtzman/goFlux")
+  textVersion = paste0("Gewirtzman, J. (2026). goFlux (Rheault et al. 2024), fork with additions ",
+                       "(version ", meta$Version, ", commit ", sha, "). https://github.com/jgewirtzman/goFlux")
 )

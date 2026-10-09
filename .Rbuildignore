@@ -16,3 +16,5 @@
 ^PR_.*\.md$
 ^CHANGELOG\.md$
 ^notes$
+^CITATION\.cff$
+^\.zenodo\.json$

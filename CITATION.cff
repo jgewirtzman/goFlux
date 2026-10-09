@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: >-
+  If you use the functions added in this fork, cite this release together
+  with the goFlux paper (Rheault et al. 2024) listed under references.
+type: software
+title: "goFlux (Rheault et al. 2024), fork with additions"
+version: 0.5.0.9001
+date-released: 2026-10-09
+license: GPL-2.0-only
+repository-code: "https://github.com/jgewirtzman/goFlux"
+authors:
+  - family-names: Gewirtzman
+    given-names: Jonathan
+abstract: >-
+  Fork of the goFlux R package (Rheault et al. 2024; Qepanna/goFlux 0.5.0,
+  commit 3ab9c04) with additions for chamber-flux methods: empirical
+  second-difference precision, closure duration from the logging interval,
+  detection classes relative to the minimal detectable flux, post-hoc quality
+  flags, window and clock utilities, a one-call pipeline, de-ebulliated
+  diffusive fluxes for floating chambers, and example closures. See NEWS.md.
+references:
+  - type: article
+    title: "goFlux: A user-friendly way to calculate GHG fluxes yourself, regardless of user experience"
+    authors:
+      - family-names: Rheault
+        given-names: Karelle
+      - family-names: Christiansen
+        given-names: Jesper Riis
+      - family-names: Larsen
+        given-names: Klaus Steenberg
+    journal: Journal of Open Source Software
+    volume: 9
+    issue: 96
+    start: 6393
+    year: 2024
+    doi: 10.21105/joss.06393
+  - type: software
+    title: goFlux
+    authors:
+      - family-names: Rheault
+        given-names: Karelle
+      - family-names: Minaudo
+        given-names: Camille
+      - family-names: Larsen
+        given-names: Klaus Steenberg
+    version: 0.5.0
+    repository-code: "https://github.com/Qepanna/goFlux"

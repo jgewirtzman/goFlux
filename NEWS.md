@@ -1,7 +1,8 @@
-# goFlux 0.5.0 fork additions (jgewirtzman/goFlux, integration/methods-2026-10)
+# goFlux 0.5.0.9001 (fork additions, jgewirtzman/goFlux)
 
-Additions to goFlux 0.5.0 (Qepanna/goFlux master, 3ab9c04). Cite as
-"goFlux (Rheault et al. 2024), fork with additions, commit <sha>".
+Additions to goFlux 0.5.0 (Qepanna/goFlux master, 3ab9c04). Cite this release
+(GitHub release v0.5.0.9001, archived on Zenodo) together with Rheault et al.
+(2024); see `citation("goFlux")` and CITATION.cff.
 
 ## Changed behaviour
 

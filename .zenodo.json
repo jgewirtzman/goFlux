@@ -1,0 +1,19 @@
+{
+  "title": "goFlux (Rheault et al. 2024), fork with additions",
+  "upload_type": "software",
+  "description": "<p>Fork of the goFlux R package (Rheault et al. 2024; Qepanna/goFlux 0.5.0, commit 3ab9c04) with additions for chamber-flux methods: empirical second-difference precision, closure duration from the logging interval, detection classes relative to the minimal detectable flux, post-hoc quality flags, window and clock utilities, a one-call pipeline, de-ebulliated diffusive fluxes for floating chambers, and example closures. goFlux itself is by K. Rheault, C. Minaudo, K. S. Larsen and contributors; cite the goFlux paper (doi:10.21105/joss.06393) together with this record. See NEWS.md for the additions.</p>",
+  "creators": [
+    {"name": "Gewirtzman, Jonathan"}
+  ],
+  "contributors": [
+    {"name": "Rheault, Karelle", "type": "Other"},
+    {"name": "Minaudo, Camille", "type": "Other"},
+    {"name": "Larsen, Klaus Steenberg", "type": "Other"}
+  ],
+  "license": "GPL-2.0-only",
+  "keywords": ["greenhouse gas", "chamber flux", "methane", "minimal detectable flux", "R package"],
+  "related_identifiers": [
+    {"identifier": "10.21105/joss.06393", "relation": "references", "scheme": "doi"},
+    {"identifier": "https://github.com/Qepanna/goFlux", "relation": "isDerivedFrom", "scheme": "url"}
+  ]
+}

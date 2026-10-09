@@ -8,11 +8,11 @@
 > methods (empirical precision, detection classes, closure duration, quality
 > flags, window and clock utilities, a one-call pipeline and example closures;
 > see [NEWS.md](NEWS.md), "Fork additions"). The additions keep goFlux's
-> style so that they can be offered upstream. The fork is not released as a
-> package version: cite it by commit, as "goFlux (Rheault et al. 2024), fork
-> with additions, commit `<sha>`", together with the JOSS paper (see
-> `citation("goFlux")`). Install a given commit with
-> `remotes::install_github("jgewirtzman/goFlux@<sha>")`.
+> style so that they can be offered upstream. Releases of the fork carry
+> their own version number (0.5.0.9001, ...) and are archived on Zenodo; cite
+> the release together with the JOSS paper (see `citation("goFlux")`).
+> Install a release with
+> `remotes::install_github("jgewirtzman/goFlux@v0.5.0.9001")`.
 
 ### One Package to rule them all
 
