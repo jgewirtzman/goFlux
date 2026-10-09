@@ -23,7 +23,7 @@ bibentry(
   year = "2026",
   note = paste0("R package version ", meta$Version, ", commit ", sha),
   url = "https://github.com/jgewirtzman/goFlux",
-  doi = "10.5281/zenodo.23254791",
+  doi = "10.5281/zenodo.23254790",
   textVersion = paste0("Gewirtzman, J. (2026). goFlux (Rheault et al. 2024), fork with additions ",
-                       "(version ", meta$Version, ", commit ", sha, "). https://doi.org/10.5281/zenodo.23254791")
+                       "(version ", meta$Version, ", commit ", sha, "). https://doi.org/10.5281/zenodo.23254790")
 )

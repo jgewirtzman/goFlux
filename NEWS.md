@@ -1,3 +1,15 @@
+# goFlux 0.5.0.9002 (fork additions, jgewirtzman/goFlux)
+
+* `qc.flags()`: `qc.convex` could not fire in 0.5.0.9001. It tested only the
+  Hutchinson-Mosier curvature (`HM.k < 0`), which `goFlux()` keeps at 0 or
+  above unless `k.min < 0`. With `dataframe`, it now fits a quadratic to the
+  rows with `flag == 1` of each closure and fires when the quadratic term has
+  the sign of the overall slope and p < `convex.p` (default 0.05), as fluxqc
+  did; `HM.k < 0` remains the fallback without `dataframe`. Fluxes, MDFs and
+  detection classes are unaffected.
+* `qc.flags(min.secs = )`: new `qc.min.secs` flag for closures shorter than a
+  duration in seconds (`closure.time()`), whatever the logging interval.
+
 # goFlux 0.5.0.9001 (fork additions, jgewirtzman/goFlux)
 
 Additions to goFlux 0.5.0 (Qepanna/goFlux master, 3ab9c04). Cite this release
