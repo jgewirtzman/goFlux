@@ -15,7 +15,8 @@ click.peak2(
   width = 14,
   height = 8,
   abline = TRUE,
-  abline_corr = TRUE
+  abline_corr = TRUE,
+  gases = NULL
 )
 }
 \arguments{
@@ -59,6 +60,16 @@ save the plots produced with click.peak2. By default,
 
 \item{abline_corr}{logical; if TRUE (default), red vertical lines indicate
 \code{start.time_corr} and \code{end.time_corr} on validation plot.}
+
+\item{gases}{character vector; optional additional gas columns (e.g.
+\code{c("CO2dry_ppm", "H2O_ppm")}) drawn as read-only panels
+above the \code{gastype} panel, sharing its time axis, so that
+the observation window can be chosen with the other gases in
+view (a CO2 rise confirms the seal when picking a CH4 window;
+a water-vapour step marks a chamber change). Clicking still
+happens on the \code{gastype} panel only and the output is
+identical to the unstacked call. Default \code{NULL}: single
+panel, unchanged behaviour.}
 }
 \value{
 A data.frame, identical to an unlisted version of the input
