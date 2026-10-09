@@ -101,10 +101,14 @@
 #' @export
 #'
 MDF <- function(p, t, flux.term, conf = NULL) {
-  z <- if (is.null(conf)) 1 else {
-    if (!is.numeric(conf) || length(conf) != 1 || conf <= 0 || conf >= 1)
-      stop("'conf' must be a single number between 0 and 1")
-    stats::qnorm(1 - (1 - conf) / 2)
-  }
-  z * (p / t) * flux.term
+  mdf.z(conf) * (p / t) * flux.term
+}
+
+# Multiplier z of the precision in the MDF: 1 without conf, else the
+# standard-normal quantile qnorm(1 - (1 - conf)/2). Used by MDF() and best.flux().
+mdf.z <- function(conf = NULL) {
+  if (is.null(conf)) return(1)
+  if (!is.numeric(conf) || length(conf) != 1 || conf <= 0 || conf >= 1)
+    stop("'conf' must be a single number between 0 and 1")
+  stats::qnorm(1 - (1 - conf) / 2)
 }

@@ -3,6 +3,17 @@
 
 # goFlux: A user-friendly way to calculate GHG fluxes yourself, regardless of user experience<img src="man/figures/goFlux.png" align="right" width="200"/>
 
+> **This is a fork:** <https://github.com/jgewirtzman/goFlux>, goFlux
+> (Rheault et al. 2024) with additions by J. Gewirtzman for chamber-flux
+> methods (empirical precision, detection classes, closure duration, quality
+> flags, window and clock utilities, a one-call pipeline and example closures;
+> see [NEWS.md](NEWS.md), "Fork additions"). The additions keep goFlux's
+> style so that they can be offered upstream. The fork is not released as a
+> package version: cite it by commit, as "goFlux (Rheault et al. 2024), fork
+> with additions, commit `<sha>`", together with the JOSS paper (see
+> `citation("goFlux")`). Install a given commit with
+> `remotes::install_github("jgewirtzman/goFlux@<sha>")`.
+
 ### One Package to rule them all
 
 Non-steady state (static) chambers are widely used for measuring soil
@@ -269,7 +280,9 @@ The minimal detectable flux ($MDF$) is based on instrument precision
 $$\mathbf{Eqn~5}~~~~~~MDF = \frac{prec}{t}~\times~flux.term$$
 
 Where the instrument precision is in the same units as the measured gas
-(ppm or ppb) and the measurement time is in seconds.
+(ppm or ppb) and the measurement time is in seconds: the span of the
+selected window plus one logging interval (`closure.time()`), not the
+number of observations.
 
 Below the MDF, the flux estimate is considered under the detection
 limit, but not null. Therefore, the function will not return a 0. There

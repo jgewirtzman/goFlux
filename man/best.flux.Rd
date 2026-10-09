@@ -53,9 +53,11 @@ the kappa-max. Default is \code{k.ratio = 1}.}
 \item{warn.length}{numerical value; limit under which a measurement is flagged for
 being too short (\code{nb.obs < warn.length}).}
 
-\item{conf}{numerical value; optional two-sided confidence level applied to
+\item{conf}{numerical value; optional label of the multiplier applied to
 the \code{MDF} column before the MDF criterion:
-\eqn{MDF \cdot qnorm(1 - (1 - conf)/2)} (1.96 for 0.95). Use it when
+\eqn{MDF \cdot qnorm(1 - (1 - conf)/2)} (1.96 for 0.95, a
+benchmark multiplier, not a calibrated 95 \% test; see
+\code{\link[goFlux]{MDF}}). Use it when
 \code{\link[goFlux]{goFlux}} was run without \code{conf}. The
 scaled value is returned in \code{MDF} and the level in
 \code{MDF.conf}. Default \code{NULL}: unchanged.}

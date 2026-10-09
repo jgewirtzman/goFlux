@@ -31,9 +31,11 @@
 #' @param p.val numerical value; the minimal limit to indicate a slope
 #'              significantly larger than zero. The default threshold is
 #'              \emph{p-value} < 0.05.
-#' @param conf numerical value; optional two-sided confidence level applied to
+#' @param conf numerical value; optional label of the multiplier applied to
 #'             the \code{MDF} column before the MDF criterion:
-#'             \eqn{MDF \cdot qnorm(1 - (1 - conf)/2)} (1.96 for 0.95). Use it when
+#'             \eqn{MDF \cdot qnorm(1 - (1 - conf)/2)} (1.96 for 0.95, a
+#'             benchmark multiplier, not a calibrated 95 \% test; see
+#'             \code{\link[goFlux]{MDF}}). Use it when
 #'             \code{\link[goFlux]{goFlux}} was run without \code{conf}. The
 #'             scaled value is returned in \code{MDF} and the level in
 #'             \code{MDF.conf}. Default \code{NULL}: unchanged.
@@ -295,7 +297,7 @@ best.flux <- function(flux.result,
   # When conf is given, the MDF column is scaled by z = qnorm(1 - (1 - conf)/2)
   # before the MDF criterion is applied (see MDF()). MDF.conf records it.
   if(!is.null(conf) & any(grepl("\\<MDF\\>", names(flux.result)))){
-    flux.result$MDF <- flux.result$MDF * stats::qnorm(1 - (1 - conf) / 2)
+    flux.result$MDF <- flux.result$MDF * mdf.z(conf)
     flux.result$MDF.conf <- conf
   }
 

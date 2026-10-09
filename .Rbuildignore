@@ -13,3 +13,8 @@
 ^RData$
 ^website$
 ^\.release-please-manifest\.json$
+^PR_.*\.md$
+^INTEGRATION_PLAN\.md$
+^MDF_HANDOFF_.*\.md$
+^CHANGELOG\.md$
+^notes$
