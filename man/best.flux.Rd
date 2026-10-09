@@ -12,7 +12,8 @@ best.flux(
   g.limit = 2,
   p.val = 0.05,
   k.ratio = 1,
-  warn.length = 60
+  warn.length = 60,
+  conf = NULL
 )
 }
 \arguments{
@@ -51,6 +52,13 @@ the kappa-max. Default is \code{k.ratio = 1}.}
 
 \item{warn.length}{numerical value; limit under which a measurement is flagged for
 being too short (\code{nb.obs < warn.length}).}
+
+\item{conf}{numerical value; optional two-sided confidence level applied to
+the \code{MDF} column before the MDF criterion:
+\eqn{MDF \cdot qnorm(1 - (1 - conf)/2)} (1.96 for 0.95). Use it when
+\code{\link[goFlux]{goFlux}} was run without \code{conf}. The
+scaled value is returned in \code{MDF} and the level in
+\code{MDF.conf}. Default \code{NULL}: unchanged.}
 }
 \value{
 A data.frame identical to the input \code{flux.result} (output from
@@ -131,6 +139,18 @@ non-significant, i. e., flux under the detection limit. The default threshold is
 If \code{LM.p.val < p.val}, a warning is given in the columns
 \code{quality.check} and \code{LM.diagnose} to warn of an estimated flux
 below the detection limit.
+
+\strong{Note on p-values.} The \emph{p-value} criterion tests the slope of
+the linear model with ordinary least-squares standard errors, which assume
+independent residuals. On high-frequency records (1 Hz and faster) the
+residuals of a chamber trace are strongly autocorrelated, so the test is
+anticonservative: it declares slopes significant far more often than the
+nominal level, and the smaller the p-value the less it means. Treat it as a
+coarse validity filter (a flat trace with \code{LM.p.val} well above
+\code{p.val} is not a flux), not as a detection criterion. For detection use
+the minimal detectable flux with an empirical precision
+(\code{\link[goFlux]{empirical.prec}}) and a stated confidence level
+(\code{conf}).
 
 \code{warn.length} is the limit below which the chamber closure time is
 flagged for being too short (\code{nb.obs < warn.length}). Portable

@@ -60,6 +60,13 @@
 #'               \code{k.mult} must be > 0 and =< 10.
 #' @param warn.length numerical value; limit under which a measurement is
 #'                    flagged for being too short (\code{nb.obs < warn.length}).
+#' @param conf numerical value; optional two-sided confidence level for the
+#'             minimal detectable flux (see \code{\link[goFlux]{MDF}}): with
+#'             \code{conf = 0.95} the \code{MDF} column is
+#'             \eqn{1.96 \cdot prec / t \cdot flux.term}. Default \code{NULL}
+#'             keeps the current \eqn{prec / t \cdot flux.term}. Here \code{t}
+#'             is \code{max(Etime) + 1}, in seconds from \code{POSIX.time}
+#'             regardless of the logging interval (it is not \code{nb.obs}).
 #' @param k.min numerical value; a lower boundary value for kappa in the HM model.
 #'              Default is \code{k.min = 0}
 #'
@@ -178,7 +185,7 @@
 goFlux <- function(dataframe, gastype, H2O_col = "H2O_ppm", prec = NULL,
                    Area = NULL, offset = NULL, Vtot = NULL, Vcham = NULL,
                    Pcham = NULL, Tcham = NULL, k.mult = 1,
-                   warn.length = 60, k.min = 0){
+                   warn.length = 60, k.min = 0, conf = NULL){
 
   # Check arguments ####
   is_scalar_num <- function(x) {
@@ -635,7 +642,7 @@ goFlux <- function(dataframe, gastype, H2O_col = "H2O_ppm", prec = NULL,
     data_split[[f]]$flux_term <- flux_term_f
 
     MDF_f <- MDF(data_split[[f]]$prec_f[1],
-                 (max(data_split[[f]]$Etime)+1), flux_term_f)
+                 (max(data_split[[f]]$Etime)+1), flux_term_f, conf = conf)
     data_split[[f]]$MDF <- MDF_f
   }
 

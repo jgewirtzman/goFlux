@@ -31,6 +31,12 @@
 #' @param p.val numerical value; the minimal limit to indicate a slope
 #'              significantly larger than zero. The default threshold is
 #'              \emph{p-value} < 0.05.
+#' @param conf numerical value; optional two-sided confidence level applied to
+#'             the \code{MDF} column before the MDF criterion:
+#'             \eqn{MDF \cdot qnorm(1 - (1 - conf)/2)} (1.96 for 0.95). Use it when
+#'             \code{\link[goFlux]{goFlux}} was run without \code{conf}. The
+#'             scaled value is returned in \code{MDF} and the level in
+#'             \code{MDF.conf}. Default \code{NULL}: unchanged.
 #' @param warn.length numerical value; limit under which a measurement is flagged for
 #'                    being too short (\code{nb.obs < warn.length}).
 #'
@@ -101,6 +107,18 @@
 #' \code{quality.check} and \code{LM.diagnose} to warn of an estimated flux
 #' below the detection limit.
 #'
+#' \strong{Note on p-values.} The \emph{p-value} criterion tests the slope of
+#' the linear model with ordinary least-squares standard errors, which assume
+#' independent residuals. On high-frequency records (1 Hz and faster) the
+#' residuals of a chamber trace are strongly autocorrelated, so the test is
+#' anticonservative: it declares slopes significant far more often than the
+#' nominal level, and the smaller the p-value the less it means. Treat it as a
+#' coarse validity filter (a flat trace with \code{LM.p.val} well above
+#' \code{p.val} is not a flux), not as a detection criterion. For detection use
+#' the minimal detectable flux with an empirical precision
+#' (\code{\link[goFlux]{empirical.prec}}) and a stated confidence level
+#' (\code{conf}).
+#'
 #' \code{warn.length} is the limit below which the chamber closure time is
 #' flagged for being too short (\code{nb.obs < warn.length}). Portable
 #' greenhouse gas analyzers typically measure at a frequency of 1 Hz. Therefore,
@@ -147,9 +165,12 @@ best.flux <- function(flux.result,
                       criteria = c("MAE", "RMSE", "AICc", "SE", "g.factor",
                                    "kappa", "MDF", "nb.obs", "intercept", "p-value"),
                       intercept.lim = NULL, g.limit = 2,
-                      p.val = 0.05, k.ratio = 1, warn.length = 60) {
+                      p.val = 0.05, k.ratio = 1, warn.length = 60, conf = NULL) {
 
   # Check arguments ####
+  if(!is.null(conf)){
+    if(!is.numeric(conf) | length(conf) != 1) stop("'conf' must be a single number between 0 and 1")
+    if(conf <= 0 | conf >= 1) stop("'conf' must be a single number between 0 and 1")}
   if(missing(flux.result)) stop("'flux.result' is required")
   if(!is.null(flux.result) & !is.data.frame(flux.result)){
     stop("'flux.result' must be of class 'dataframe'")}
@@ -261,6 +282,14 @@ best.flux <- function(flux.result,
 
   } else if(any(grepl("\\<nb.obs\\>", criteria)) & is.null(warn.length)){
     stop("'nb.obs' is mentionned in 'criteria', but the argument 'warn.length' is NULL")}
+
+  ## Confidence level for MDF ####
+  # When conf is given, the MDF column is scaled by z = qnorm(1 - (1 - conf)/2)
+  # before the MDF criterion is applied (see MDF()). MDF.conf records it.
+  if(!is.null(conf) & any(grepl("\\<MDF\\>", names(flux.result)))){
+    flux.result$MDF <- flux.result$MDF * stats::qnorm(1 - (1 - conf) / 2)
+    flux.result$MDF.conf <- conf
+  }
 
   ## Check MDF ####
   if(any(grepl("\\<MDF\\>", criteria))){
