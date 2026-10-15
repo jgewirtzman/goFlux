@@ -95,7 +95,10 @@ standard deviation \eqn{\sigma} give a second difference of variance
 second difference, and slow curvature leaves only a term of order
 curvature x \eqn{\Delta t^2}. The estimator is a robust, median-based form
 of the one-sample Hadamard deviation (Riley 2008), not the (mean-square)
-Hadamard statistic itself. A closure needs at least 6 second differences;
+Hadamard statistic itself. The same estimator is the noise term of the DER_SNR
+algorithm for spectra (Stoehr et al. 2008), there with differences taken two
+bins apart, and a robust form of the second-difference variance estimator
+of nonparametric regression (Gasser et al. 1986). A closure needs at least 6 second differences;
 otherwise its \eqn{\sigma_i} is \code{NA}. The precision of a group
 (\code{by}) is the \emph{median} of \eqn{\sigma_i} over its closures, so that
 a minority of very large, curved or bubbly closures cannot set the group
@@ -227,9 +230,18 @@ empirical.prec(two, "CH4dry_ppb")$prec
 empirical.prec(two, "CH4dry_ppb", method = "mad_diff1")$prec
 }
 \references{
+Gasser, T., Sroka, L., & Jennen-Steinmetz, C. (1986). Residual variance and
+residual pattern in nonlinear regression. \emph{Biometrika}, 73(3),
+625-633. \doi{10.1093/biomet/73.3.625}
+
 Riley, W. J. (2008). Handbook of Frequency Stability Analysis. NIST Special
 Publication 1065. National Institute of Standards and Technology.
 \doi{10.6028/NIST.SP.1065}
+
+Stoehr, F., White, R., Smith, M., et al. (2008). DER_SNR: a simple and
+general spectroscopic signal-to-noise measurement algorithm. In R. W.
+Argyle, P. S. Bunclark, & J. R. Lewis (Eds.), \emph{Astronomical Data
+Analysis Software and Systems XVII}, ASP Conference Series 394, 505.
 }
 \seealso{
 \code{\link[goFlux]{MDF}}, \code{\link[goFlux]{goFlux}},

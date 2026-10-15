@@ -1,3 +1,21 @@
+# goFlux 0.5.0.9003 (fork additions, jgewirtzman/goFlux)
+
+Additions only; fluxes, MDFs and detection classes from 0.5.0.9002 are unchanged.
+
+* `flux.class()`: with `dataframe`, also returns the analytical half-width of
+  the slope interval of a straight line through each closure's readings
+  (Cowan et al. 2025), computed with the same precision as the MDF
+  (`det.reg.half`), the detection class it implies (`det.reg.class`:
+  emission, uptake or not significant), and the lag-1 autocorrelation of
+  that line's residuals (`det.reg.ac1`), which shows when the interval is too
+  narrow. New argument `reg.conf` (default 0.95).
+* `flux.asinh()`: new. Inverse hyperbolic sine of fluxes scaled by a typical
+  MDF, keeping zeros and negative fluxes, for tests of the typical flux;
+  `inverse = TRUE` back-transforms.
+* `empirical.prec()` documentation: the estimator is also the noise term of
+  DER_SNR (Stoehr et al. 2008) and a robust form of the second-difference
+  variance estimator of Gasser et al. (1986).
+
 # goFlux 0.5.0.9002 (fork additions, jgewirtzman/goFlux)
 
 GitHub release v0.5.0.9002, Zenodo doi:10.5281/zenodo.23256675.

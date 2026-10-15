@@ -1,0 +1,74 @@
+#' Inverse hyperbolic sine of fluxes scaled by the minimal detectable flux
+#'
+#' Transforms fluxes with \eqn{asinh(flux / scale)}, a log-like transformation
+#' that, unlike a logarithm, keeps zero and negative fluxes. With \code{scale}
+#' set to a typical minimal detectable flux (MDF), fluxes that cannot be told
+#' from zero fall in the nearly linear range of the transformation and larger
+#' fluxes in its logarithmic range. \code{inverse = TRUE} back-transforms.
+#'
+#' @param flux numerical; fluxes (any sign) or, with \code{inverse = TRUE},
+#'             transformed values.
+#' @param scale numerical; a single positive number in flux units, such as the
+#'              median \code{det.MDF} of \code{\link[goFlux]{flux.class}} over
+#'              the dataset. Use the same \code{scale} for every group that
+#'              will be compared.
+#' @param inverse logical; back-transform (\eqn{scale \cdot sinh(y)}) instead?
+#'                Default \code{FALSE}.
+#'
+#' @details
+#' \eqn{asinh(x) = \ln(x + \sqrt{x^2 + 1})} is close to \eqn{x} for
+#' \eqn{|x| < 1} and to \eqn{sign(x) \ln(2|x|)} for large \eqn{|x|}. Where its
+#' linear range lies depends on the units, so an unscaled \code{asinh(flux)}
+#' behaves very differently for fluxes in nmol and in umol; dividing by the MDF
+#' ties the change from linear to logarithmic to the detection limit, as
+#' asinh magnitudes in astronomy tie it to the measurement noise
+#' (Lupton et al. 1999).
+#'
+#' Use the transformation for tests and models of the \emph{typical} flux
+#' (differences between groups, responses to drivers), where it keeps every
+#' closure and tames the heavy tail. It does not answer questions about totals:
+#' a back-transformed mean is a typical value, not the mean flux, and
+#' coefficients on this scale are not percentage effects when many values lie
+#' near zero (Bellemare and Wichman 2020). Compute means, budgets and the size
+#' of differences from untransformed fluxes.
+#'
+#' @returns A numerical vector the length of \code{flux}.
+#'
+#' @references
+#' Bellemare, M. F., & Wichman, C. J. (2020). Elasticities and the inverse
+#' hyperbolic sine transformation. \emph{Oxford Bulletin of Economics and
+#' Statistics}, 82(1), 50-61. \doi{10.1111/obes.12325}
+#'
+#' Burbidge, J. B., Magee, L., & Robb, A. L. (1988). Alternative
+#' transformations to handle extreme values of the dependent variable.
+#' \emph{Journal of the American Statistical Association}, 83(401), 123-127.
+#' \doi{10.1080/01621459.1988.10478575}
+#'
+#' Lupton, R. H., Gunn, J. E., & Szalay, A. S. (1999). A modified magnitude
+#' system that produces well-behaved magnitudes, colors, and errors even for
+#' low signal-to-noise ratio measurements. \emph{The Astronomical Journal}, 118,
+#' 1406-1410. \doi{10.1086/301004}
+#'
+#' @include goFlux-package.R
+#'
+#' @seealso \code{\link[goFlux]{flux.class}}, \code{\link[goFlux]{MDF}}
+#'
+#' @examples
+#' flux <- c(-0.05, 0, 0.02, 0.1, 1, 10)
+#' y <- flux.asinh(flux, scale = 0.08)
+#' y
+#' flux.asinh(y, scale = 0.08, inverse = TRUE)  # recovers flux
+#' @export
+flux.asinh <- function(flux, scale, inverse = FALSE){
+
+  # Check arguments
+  if(missing(flux)) stop("'flux' is required")
+  if(!is.numeric(flux)) stop("'flux' must be of class numeric")
+  if(missing(scale)) stop("'scale' is required (e.g. the median det.MDF of flux.class())")
+  if(!is.numeric(scale) || length(scale) != 1 || !is.finite(scale) || scale <= 0){
+    stop("'scale' must be a single positive number")}
+  if(!is.logical(inverse) || length(inverse) != 1 || is.na(inverse)){
+    stop("'inverse' must be TRUE or FALSE")}
+
+  if(inverse) scale * sinh(flux) else asinh(flux / scale)
+}

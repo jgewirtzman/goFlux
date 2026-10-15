@@ -5,8 +5,9 @@
 
 > **This is a fork:** <https://github.com/jgewirtzman/goFlux>, goFlux
 > (Rheault et al. 2024) with additions by J. Gewirtzman for chamber-flux
-> methods (empirical precision, detection classes, closure duration, quality
-> flags, window and clock utilities, a one-call pipeline and example closures;
+> methods (empirical precision, detection classes and regression intervals,
+> closure duration, quality flags, an MDF-scaled arcsinh transform, window and
+> clock utilities, a one-call pipeline and example closures;
 > see [NEWS.md](NEWS.md), "Fork additions"). The additions keep goFlux's
 > style so that they can be offered upstream. Releases of the fork carry
 > their own version number and are archived on Zenodo: version 0.5.0.9002 is

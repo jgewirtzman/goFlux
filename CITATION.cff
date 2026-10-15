@@ -4,8 +4,8 @@ message: >-
   with the goFlux paper (Rheault et al. 2024) listed under references.
 type: software
 title: "goFlux (Rheault et al. 2024), fork with additions"
-version: 0.5.0.9002
-date-released: 2026-10-09
+version: 0.5.0.9003
+date-released: 2026-10-14
 license: GPL-2.0-only
 repository-code: "https://github.com/jgewirtzman/goFlux"
 doi: 10.5281/zenodo.23256675
@@ -23,9 +23,9 @@ abstract: >-
   Fork of the goFlux R package (Rheault et al. 2024; Qepanna/goFlux 0.5.0,
   commit 3ab9c04) with additions for chamber-flux methods: empirical
   second-difference precision, closure duration from the logging interval,
-  detection classes relative to the minimal detectable flux, post-hoc quality
+  detection classes relative to the minimal detectable flux and regression intervals, post-hoc quality
   flags, window and clock utilities, a one-call pipeline, de-ebulliated
-  diffusive fluxes for floating chambers, and example closures. See NEWS.md.
+  diffusive fluxes for floating chambers, an MDF-scaled arcsinh transform, and example closures. See NEWS.md.
 references:
   - type: article
     title: "goFlux: A user-friendly way to calculate GHG fluxes yourself, regardless of user experience"

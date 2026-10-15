@@ -39,6 +39,8 @@
 #'          \code{\link[goFlux]{closure.time}}.
 #' @param flux.col character string; the flux column to classify. Default
 #'                 \code{"best.flux"}.
+#' @param reg.conf numerical; confidence level of the regression interval
+#'                 returned with \code{dataframe} (see Details). Default 0.95.
 #'
 #' @details
 #' The MDF of each row is \eqn{MDF = z \cdot prec / t \cdot flux.term}
@@ -72,6 +74,23 @@
 #' and assumes independent residuals (Cowan et al. 2025). A linear-model
 #' p-value is not the test of a Hutchinson-Mosier estimate.
 #'
+#' \strong{Regression interval.} With \code{dataframe}, each row also gets the
+#' analytical half-width of the slope interval of a straight line through the
+#' closure's flagged readings (Cowan et al. 2025), in flux units:
+#' \deqn{det.reg.half = t_{1 - (1 - reg.conf)/2,\, n - 2} \cdot prec /
+#' \sqrt{\sum_j (t_j - \bar{t})^2} \cdot flux.term,}{det.reg.half = qt(1 - (1 - reg.conf)/2, n - 2) * prec / sqrt(sum((t_j - mean(t))^2)) * flux.term,}
+#' with \code{prec} the same precision as the MDF (\code{det.prec}) and
+#' \eqn{t_j} the reading times. \code{det.reg.class} compares \code{flux.col} with
+#' it as \code{det.class} does with the MDF (\code{"not significant"} in
+#' between). Because it uses every reading, the interval is narrower than the
+#' MDF (about \eqn{\sqrt{12/n}}{sqrt(12/n)} of it for evenly spaced readings),
+#' but it is only valid if successive errors are independent and the straight
+#' line describes the closure. \code{det.reg.ac1}, the lag-1 autocorrelation of
+#' the residuals of that line, is the check: near 0 for white noise, larger
+#' when readings are correlated or the closure curves, in which case the
+#' interval is too narrow. Report it alongside the MDF rather than instead of
+#' it.
+#'
 #' The precision given to \code{\link[goFlux]{goFlux}} (\code{prec} or the
 #' \code{*_prec} columns) also sets kappa-max and so the curvature allowed to
 #' the HM model and the model choice of \code{\link[goFlux]{best.flux}}.
@@ -87,6 +106,8 @@
 #'          units) and \code{det.class} appended. With \code{prec = NULL} and
 #'          \code{dataframe}, also \code{det.prec.closure}, the closure's own
 #'          second-difference precision (a diagnostic, not the MDF basis).
+#'          With \code{dataframe}, also \code{det.reg.half}, \code{det.reg.class}
+#'          and \code{det.reg.ac1} (see Details).
 #'
 #' @references
 #' Christiansen, J. R., Outhwaite, J., & Smukler, S. M. (2015). Comparison of
@@ -125,7 +146,8 @@
 #' flux.class(CH4_best, dataframe = manID.UGGA, gastype = "CH4dry_ppb", prec = 1.2)$det.MDF
 #' @export
 flux.class <- function(flux.result, dataframe = NULL, gastype = NULL, prec = NULL,
-                       by = NULL, conf = NULL, t = NULL, flux.col = "best.flux") {
+                       by = NULL, conf = NULL, t = NULL, flux.col = "best.flux",
+                       reg.conf = 0.95) {
 
   # Check arguments
   if(missing(flux.result)) stop("'flux.result' is required")
@@ -141,6 +163,8 @@ flux.class <- function(flux.result, dataframe = NULL, gastype = NULL, prec = NUL
       stop("'dataframe' must contain 'Etime' or 'POSIX.time'")}}
   if(!is.null(by) && !by %in% names(flux.result)){
     stop("'flux.result' must contain a column that matches 'by'")}
+  if(!is.numeric(reg.conf) || length(reg.conf) != 1 || reg.conf <= 0 || reg.conf >= 1){
+    stop("'reg.conf' must be a single number between 0 and 1")}
 
   fx <- as.data.frame(flux.result)
   n <- nrow(fx)
@@ -186,5 +210,37 @@ flux.class <- function(flux.result, dataframe = NULL, gastype = NULL, prec = NUL
   fx$det.MDF <- m
   fx$det.class <- ifelse(is.na(m) | is.na(flux), NA_character_,
                          ifelse(flux > m, "emission", ifelse(flux < -m, "uptake", "below MDF")))
+
+  # regression interval and residual autocorrelation of a straight line (needs the readings)
+  if(!is.null(dataframe)){
+    dd <- as.data.frame(dataframe)
+    dd <- dd[!is.na(dd$flag) & dd$flag == 1, ]
+    et <- if("POSIX.time" %in% names(dd)) as.numeric(dd$POSIX.time) else dd$Etime
+    rs <- lapply(split(seq_len(nrow(dd)), as.character(dd$UniqueID)), function(i)
+      reg.closure(dd[[gastype]][i], et[i]))
+    rs <- rs[uid]
+    num <- function(nm) vapply(rs, function(r) if(is.null(r)) NA_real_ else r[[nm]], numeric(1), USE.NAMES = FALSE)
+    nn <- num("n"); sxx <- num("sxx")
+    h <- ifelse(nn > 2, stats::qt(1 - (1 - reg.conf)/2, pmax(nn - 2, 1)), NA_real_) *
+      fx$det.prec / sqrt(sxx) * fx$flux.term
+    fx$det.reg.half <- abs(h)
+    fx$det.reg.class <- ifelse(is.na(fx$det.reg.half) | is.na(flux), NA_character_,
+                           ifelse(flux > fx$det.reg.half, "emission",
+                                  ifelse(flux < -fx$det.reg.half, "uptake", "not significant")))
+    fx$det.reg.ac1 <- num("ac1")
+  }
   fx
+}
+
+# Sum of squares of the reading times and lag-1 autocorrelation of the residuals of a
+# straight line through one closure's flagged readings (in time order).
+reg.closure <- function(x, tm){
+  ok <- is.finite(x) & is.finite(tm)
+  x <- x[ok]; tm <- tm[ok]
+  o <- order(tm); x <- x[o]; tm <- tm[o] - tm[o][1]
+  n <- length(x)
+  if(n < 3) return(list(n = n, sxx = NA_real_, ac1 = NA_real_))
+  r <- stats::residuals(stats::lm(x ~ tm))
+  list(n = n, sxx = sum((tm - mean(tm))^2),
+       ac1 = if(n > 3) suppressWarnings(stats::cor(r[-1], r[-n])) else NA_real_)
 }

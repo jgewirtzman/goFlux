@@ -8,7 +8,8 @@ t.s <- closure.time(as.numeric(fl$POSIX.time))
 test_that("default: group second-difference precision, z = 1, t in seconds; only appends", {
   out <- flux.class(best, dataframe = d, gastype = "CH4dry_ppb")
   expect_setequal(setdiff(names(out), names(best)),
-                  c("det.prec", "det.t", "det.MDF", "det.class", "det.prec.closure"))
+                  c("det.prec", "det.t", "det.MDF", "det.class", "det.prec.closure",
+                    "det.reg.half", "det.reg.class", "det.reg.ac1"))
   for (nm in names(best)) expect_identical(out[[nm]], as.data.frame(best)[[nm]], info = nm)
   s.i <- hadamard.closure(fl$CH4dry_ppb, as.numeric(fl$POSIX.time))$prec
   expect_equal(out$det.prec.closure, s.i)
@@ -77,4 +78,35 @@ test_that("the duration follows the logging interval", {
   d5 <- d; d5$POSIX.time <- d5$POSIX.time[1] + 5 * (seq_len(nrow(d5)) - 1)   # same samples every 5 s
   o5 <- flux.class(best, dataframe = d5, gastype = "CH4dry_ppb", prec = 1)
   expect_equal(o5$det.t, 5 * sum(d5$flag == 1))
+})
+
+
+test_that("regression interval: Cowan half-width with the MDF precision; residual lag-1 autocorrelation", {
+  out <- flux.class(best, dataframe = d, gastype = "CH4dry_ppb", conf = 0.95)
+  tm <- as.numeric(fl$POSIX.time); tm <- tm - tm[1]
+  n <- length(tm)
+  expect_equal(out$det.reg.half, qt(0.975, n - 2) * out$det.prec / sqrt(sum((tm - mean(tm))^2)) * ft)
+  r <- residuals(lm(fl$CH4dry_ppb ~ tm))
+  expect_equal(out$det.reg.ac1, cor(r[-1], r[-n]))
+  expect_equal(out$det.reg.class, ifelse(out$best.flux > out$det.reg.half, "emission",
+                                     ifelse(out$best.flux < -out$det.reg.half, "uptake", "not significant")))
+  o90 <- flux.class(best, dataframe = d, gastype = "CH4dry_ppb", reg.conf = 0.90)
+  expect_equal(o90$det.reg.half / out$det.reg.half, qt(0.95, n - 2) / qt(0.975, n - 2))
+  # supplied precision is used for the interval too
+  p2 <- flux.class(best, dataframe = d, gastype = "CH4dry_ppb", prec = 2)
+  expect_equal(p2$det.reg.half, qt(0.975, n - 2) * 2 / sqrt(sum((tm - mean(tm))^2)) * ft)
+  # no readings, no interval
+  expect_false(any(c("det.reg.half", "det.reg.class", "det.reg.ac1") %in% names(flux.class(best, prec = 2, t = 180))))
+  expect_error(flux.class(best, dataframe = d, gastype = "CH4dry_ppb", reg.conf = 1.2), "reg.conf")
+})
+
+test_that("white noise around a line: interval about sqrt(12/n) of the MDF, residual ac1 near 0", {
+  set.seed(11)
+  t0 <- as.POSIXct("2024-06-01", tz = "UTC"); n <- 600
+  tr <- data.frame(UniqueID = "w", POSIX.time = t0 + 0:(n - 1), flag = 1,
+                   CH4dry_ppb = 2000 + 0.01 * (0:(n - 1)) + rnorm(n, 0, 1))
+  fr <- data.frame(UniqueID = "w", flux.term = 1, best.flux = 0.01)
+  o <- flux.class(fr, dataframe = tr, gastype = "CH4dry_ppb", prec = 1, conf = 0.95)
+  expect_equal(o$det.reg.half / o$det.MDF, sqrt(12 / n), tolerance = 0.02)
+  expect_lt(abs(o$det.reg.ac1), 0.15)
 })

@@ -12,7 +12,8 @@ flux.class(
   by = NULL,
   conf = NULL,
   t = NULL,
-  flux.col = "best.flux"
+  flux.col = "best.flux",
+  reg.conf = 0.95
 )
 }
 \arguments{
@@ -55,6 +56,9 @@ or a vector aligned with the rows of \code{flux.result}. Default
 
 \item{flux.col}{character string; the flux column to classify. Default
 \code{"best.flux"}.}
+
+\item{reg.conf}{numerical; confidence level of the regression interval
+returned with \code{dataframe} (see Details). Default 0.95.}
 }
 \value{
 \code{flux.result} with the columns \code{det.prec} (precision
@@ -62,6 +66,8 @@ or a vector aligned with the rows of \code{flux.result}. Default
          units) and \code{det.class} appended. With \code{prec = NULL} and
          \code{dataframe}, also \code{det.prec.closure}, the closure's own
          second-difference precision (a diagnostic, not the MDF basis).
+         With \code{dataframe}, also \code{det.reg.half}, \code{det.reg.class}
+         and \code{det.reg.ac1} (see Details).
 }
 \description{
 Classifies each flux of a \code{\link[goFlux]{best.flux}} (or
@@ -102,6 +108,23 @@ value should stay signed in means and budgets. Regression-based detection
 a different question: it gains precision with the number of observations
 and assumes independent residuals (Cowan et al. 2025). A linear-model
 p-value is not the test of a Hutchinson-Mosier estimate.
+
+\strong{Regression interval.} With \code{dataframe}, each row also gets the
+analytical half-width of the slope interval of a straight line through the
+closure's flagged readings (Cowan et al. 2025), in flux units:
+\deqn{det.reg.half = t_{1 - (1 - reg.conf)/2,\, n - 2} \cdot prec /
+\sqrt{\sum_j (t_j - \bar{t})^2} \cdot flux.term,}{det.reg.half = qt(1 - (1 - reg.conf)/2, n - 2) * prec / sqrt(sum((t_j - mean(t))^2)) * flux.term,}
+with \code{prec} the same precision as the MDF (\code{det.prec}) and
+\eqn{t_j} the reading times. \code{det.reg.class} compares \code{flux.col} with
+it as \code{det.class} does with the MDF (\code{"not significant"} in
+between). Because it uses every reading, the interval is narrower than the
+MDF (about \eqn{\sqrt{12/n}}{sqrt(12/n)} of it for evenly spaced readings),
+but it is only valid if successive errors are independent and the straight
+line describes the closure. \code{det.reg.ac1}, the lag-1 autocorrelation of
+the residuals of that line, is the check: near 0 for white noise, larger
+when readings are correlated or the closure curves, in which case the
+interval is too narrow. Report it alongside the MDF rather than instead of
+it.
 
 The precision given to \code{\link[goFlux]{goFlux}} (\code{prec} or the
 \code{*_prec} columns) also sets kappa-max and so the curvature allowed to
