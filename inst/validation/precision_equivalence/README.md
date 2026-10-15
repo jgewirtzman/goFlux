@@ -8,7 +8,7 @@ gases (28 closure x gas values; 1 s and 5 s logging, one closure with gaps):
 | implementation | source | result vs `empirical.prec()` |
 |---|---|---|
 | `precision_hadamard()` | fluxqc 0.2.4, commit ecc7710, `R/precision.R` | identical (precision, interval, number of second differences, lag-1 autocorrelation; tolerance 1e-12) |
-| `closure_noise()` | whole_tree_flux, `data processing/goFlux_reprocessing/precision_helpers.R` | identical (same quantities); its `t_sec` equals `closure.time()` |
+| `closure_noise()` | whole_tree_flux, `flux/precision_helpers.R` (before commit 256e58a: `data processing/goFlux_reprocessing/precision_helpers.R`; same content) | identical (same quantities); its `t_sec` equals `closure.time()` |
 
 `tests/testthat/test-precision.equivalence.R` checks the fork against the
 frozen `reference.csv` on every test run. Lag-1 autocorrelation of the second

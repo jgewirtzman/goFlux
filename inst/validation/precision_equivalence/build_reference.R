@@ -8,14 +8,17 @@
 # (environment variables FLUXQC_DIR and WHOLE_TREE_FLUX_DIR) without loading
 # either as a package:
 #   fluxqc 0.2.4 (commit ecc7710)  R/precision.R    precision_hadamard()
-#   whole_tree_flux                precision_helpers.R  closure_noise()
+#   whole_tree_flux                flux/precision_helpers.R  closure_noise()
 # and writes reference.csv next to this file. Run from the root of the fork:
 #   Rscript inst/validation/precision_equivalence/build_reference.R
 # =============================================================================
 
 FLUXQC <- file.path(path.expand(Sys.getenv("FLUXQC_DIR")), "R/precision.R")
-WT     <- file.path(path.expand(Sys.getenv("WHOLE_TREE_FLUX_DIR")),
-                    "data processing/goFlux_reprocessing/precision_helpers.R")
+# whole_tree_flux moved this file to flux/ in commit 256e58a without changing it; its content has been
+# unchanged since commit 5350918. Older checkouts keep it under data processing/goFlux_reprocessing/.
+WT     <- file.path(path.expand(Sys.getenv("WHOLE_TREE_FLUX_DIR")), "flux/precision_helpers.R")
+if (!file.exists(WT)) WT <- file.path(path.expand(Sys.getenv("WHOLE_TREE_FLUX_DIR")),
+                                      "data processing/goFlux_reprocessing/precision_helpers.R")
 if (!file.exists(FLUXQC) || !file.exists(WT)) stop("set FLUXQC_DIR and WHOLE_TREE_FLUX_DIR")
 OUT    <- "inst/validation/precision_equivalence/reference.csv"
 
