@@ -1,5 +1,7 @@
 # goFlux 0.5.0.9003 (fork additions, jgewirtzman/goFlux)
 
+GitHub release v0.5.0.9003, Zenodo doi:10.5281/zenodo.23383778.
+
 Additions only; fluxes, MDFs and detection classes from 0.5.0.9002 are unchanged.
 
 * `flux.class()`: with `dataframe`, also returns the analytical half-width of
